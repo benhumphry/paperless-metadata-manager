@@ -495,11 +495,35 @@
                     />
                     <button
                         @click="bulkMergeGroups()"
-                        :disabled="selectedGroups.length === 0 || !bulkMergeTargetName"
-                        :class="(selectedGroups.length === 0 || !bulkMergeTargetName) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
-                        class="px-4 py-2 bg-purple-600 text-white rounded-md text-sm"
+                        :disabled="selectedGroups.length === 0 || !bulkMergeTargetName || operationInProgress"
+                        :class="(selectedGroups.length === 0 || !bulkMergeTargetName || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                        class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md text-sm"
                     >
-                        Merge Selected Groups
+                        <svg
+                            x-show="operationInProgress"
+                            class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <span x-show="!operationInProgress"
+                            >Merge Selected Groups</span
+                        >
+                        <span x-show="operationInProgress">Merging...</span>
                     </button>
                 </div>
             </div>
@@ -538,11 +562,33 @@
                             />
                             <button
                                 @click="mergeTags(prefix, group)"
-                                :disabled="!group.selected_tags || group.selected_tags.length === 0"
-                                :class="(!group.selected_tags || group.selected_tags.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
-                                class="px-3 py-1 bg-purple-600 text-white text-sm rounded"
+                                :disabled="!group.selected_tags || group.selected_tags.length === 0 || operationInProgress"
+                                :class="(!group.selected_tags || group.selected_tags.length === 0 || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                                class="inline-flex items-center px-3 py-1 bg-purple-600 text-white text-sm rounded"
                             >
-                                Merge
+                                <svg
+                                    x-show="operationInProgress"
+                                    class="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        class="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        stroke-width="4"
+                                    ></circle>
+                                    <path
+                                        class="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                </svg>
+                                <span x-show="!operationInProgress">Merge</span>
+                                <span x-show="operationInProgress">...</span>
                             </button>
                         </div>
                     </div>
