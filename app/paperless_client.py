@@ -271,6 +271,22 @@ class PaperlessClient:
             document_count=t.get("document_count", 0),
         )
 
+    async def update_tag(self, tag_id: int, **kwargs) -> Tag:
+        """Update an existing tag."""
+        resp = await self.client.patch(f"/api/tags/{tag_id}/", json=kwargs)
+        resp.raise_for_status()
+        t = resp.json()
+        return Tag(
+            id=t["id"],
+            name=t["name"],
+            slug=t.get("slug", ""),
+            color=t.get("color", "#a6cee3"),
+            matching_algorithm=t.get("matching_algorithm", 0),
+            match=t.get("match", ""),
+            is_insensitive=t.get("is_insensitive", True),
+            document_count=t.get("document_count", 0),
+        )
+
     async def get_tag_by_name(self, name: str) -> Tag | None:
         """Find a tag by exact name (case-insensitive)."""
         resp = await self.client.get(f"/api/tags/?name__iexact={name}")
@@ -406,6 +422,21 @@ class PaperlessClient:
         """Create a new correspondent."""
         data = {"name": name, **kwargs}
         resp = await self.client.post("/api/correspondents/", json=data)
+        resp.raise_for_status()
+        c = resp.json()
+        return Correspondent(
+            id=c["id"],
+            name=c["name"],
+            slug=c.get("slug", ""),
+            matching_algorithm=c.get("matching_algorithm", 0),
+            match=c.get("match", ""),
+            is_insensitive=c.get("is_insensitive", True),
+            document_count=c.get("document_count", 0),
+        )
+
+    async def update_correspondent(self, correspondent_id: int, **kwargs) -> Correspondent:
+        """Update an existing correspondent."""
+        resp = await self.client.patch(f"/api/correspondents/{correspondent_id}/", json=kwargs)
         resp.raise_for_status()
         c = resp.json()
         return Correspondent(

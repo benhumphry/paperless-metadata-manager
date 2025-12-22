@@ -40,6 +40,16 @@ class MergeRequest(BaseModel):
     target_name: str
 
 
+class UpdateRequest(BaseModel):
+    """Request to update a tag."""
+
+    name: str | None = None
+    color: str | None = None
+    match: str | None = None
+    matching_algorithm: int | None = None
+    is_insensitive: bool | None = None
+
+
 class MergePreviewResponse(BaseModel):
     """Preview of merge operation."""
 
@@ -169,6 +179,36 @@ async def get_merge_suggestions(
             },
             "total_groups": len(groups),
         }
+
+
+@router.patch("/{tag_id}", response_model=OperationResponse)
+async def update_tag(
+    tag_id: int,
+    request: UpdateRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Update a tag."""
+    try:
+        async with PaperlessClient(
+            settings.paperless_base_url,
+            settings.paperless_api_token,
+        ) as client:
+            # Build update dict with only provided fields
+            update_data = {k: v for k, v in request.dict().items() if v is not None}
+            if not update_data:
+                raise HTTPException(status_code=400, detail="No fields to update")
+
+            await client.update_tag(tag_id, **update_data)
+            return OperationResponse(
+                success=True,
+                message=f"Updated tag successfully",
+                affected_count=1,
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update tag: {str(e)}",
+        )
 
 
 @router.post("/delete", response_model=OperationResponse)
