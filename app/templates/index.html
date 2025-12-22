@@ -687,6 +687,18 @@
                                 tag_ids: this.selectedTags,
                             }),
                         });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Delete failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
                         const data = await resp.json();
 
                         if (data.success) {
@@ -720,6 +732,18 @@
                                 target_name: targetName,
                             }),
                         });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Merge failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
                         const data = await resp.json();
 
                         if (data.success) {

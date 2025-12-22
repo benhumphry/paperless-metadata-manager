@@ -180,15 +180,21 @@ async def delete_tags(
     if not request.tag_ids:
         raise HTTPException(status_code=400, detail="No tag IDs provided")
 
-    async with PaperlessClient(
-        settings.paperless_base_url,
-        settings.paperless_api_token,
-    ) as client:
-        await client.bulk_delete_tags(request.tag_ids)
-        return OperationResponse(
-            success=True,
-            message=f"Deleted {len(request.tag_ids)} tags",
-            affected_count=len(request.tag_ids),
+    try:
+        async with PaperlessClient(
+            settings.paperless_base_url,
+            settings.paperless_api_token,
+        ) as client:
+            await client.bulk_delete_tags(request.tag_ids)
+            return OperationResponse(
+                success=True,
+                message=f"Deleted {len(request.tag_ids)} tags",
+                affected_count=len(request.tag_ids),
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete tags: {str(e)}",
         )
 
 
