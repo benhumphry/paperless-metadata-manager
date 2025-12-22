@@ -86,6 +86,19 @@
                         <option value="count">Sort by Count</option>
                         <option value="count-desc">Sort by Count (desc)</option>
                     </select>
+
+                    <select
+                        x-model.number="pageSize"
+                        @change="currentPage = 1; loadTags()"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                        <option value="20">20 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                        <option :value="totalTags" x-show="totalTags > 0">
+                            All
+                        </option>
+                    </select>
                 </div>
 
                 <button
@@ -234,7 +247,7 @@
                         Show tags with ≤
                         <select
                             x-model="maxDocs"
-                            @change="loadLowUsage()"
+                            @change="lowUsageCurrentPage = 1; loadLowUsage()"
                             class="mx-1 px-2 py-1 border border-gray-300 rounded text-sm"
                         >
                             <option value="0">0</option>
@@ -249,15 +262,58 @@
                         (excluding auto-match tags and patterns: new, inbox,
                         todo, review)
                     </span>
+
+                    <select
+                        x-model.number="lowUsagePageSize"
+                        @change="lowUsageCurrentPage = 1; loadLowUsage()"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                        <option value="20">20 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                        <option
+                            :value="lowUsageTotalTags"
+                            x-show="lowUsageTotalTags > 0"
+                        >
+                            All
+                        </option>
+                    </select>
                 </div>
 
                 <button
                     @click="deleteSelectedTags()"
-                    :disabled="selectedTags.length === 0"
-                    :class="selectedTags.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'"
+                    :disabled="selectedTags.length === 0 || operationInProgress"
+                    :class="(selectedTags.length === 0 || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'"
                     class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600"
                 >
-                    Delete Selected (<span x-text="selectedTags.length"></span>)
+                    <svg
+                        x-show="operationInProgress"
+                        class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                        ></circle>
+                        <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                    </svg>
+                    <span x-show="!operationInProgress"
+                        >Delete Selected (<span
+                            x-text="selectedTags.length"
+                        ></span
+                        >)</span
+                    >
+                    <span x-show="operationInProgress">Deleting...</span>
                 </button>
             </div>
 
@@ -518,6 +574,7 @@
             // State
             activeTab: "all",
             loading: false,
+            operationInProgress: false,
             tags: [],
             lowUsageTags: [],
             mergeGroups: {},
@@ -679,6 +736,7 @@
                 this.confirmTitle = "Delete Tags";
                 this.confirmMessage = `Are you sure you want to delete ${this.selectedTags.length} tag(s)? This cannot be undone.`;
                 this.confirmAction = async () => {
+                    this.operationInProgress = true;
                     try {
                         const resp = await fetch("/api/tags/delete", {
                             method: "POST",
@@ -704,13 +762,15 @@
                         if (data.success) {
                             showToast(data.message, "success");
                             this.selectedTags = [];
-                            this.loadLowUsage();
-                            this.loadTags();
+                            await this.loadLowUsage();
+                            await this.loadTags();
                         } else {
                             showToast("Delete failed", "error");
                         }
                     } catch (e) {
                         showToast("Delete failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
                     }
                 };
                 this.showConfirm = true;
@@ -723,6 +783,7 @@
                 this.confirmTitle = "Merge Tags";
                 this.confirmMessage = `Merge ${group.tags.length} tags into "${targetName}"? ${group.total_documents} documents will be re-tagged.`;
                 this.confirmAction = async () => {
+                    this.operationInProgress = true;
                     try {
                         const resp = await fetch("/api/tags/merge", {
                             method: "POST",
@@ -748,13 +809,15 @@
 
                         if (data.success) {
                             showToast(data.message, "success");
-                            this.loadMergeSuggestions();
-                            this.loadTags();
+                            await this.loadMergeSuggestions();
+                            await this.loadTags();
                         } else {
                             showToast("Merge failed", "error");
                         }
                     } catch (e) {
                         showToast("Merge failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
                     }
                 };
                 this.showConfirm = true;
