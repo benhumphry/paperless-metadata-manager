@@ -15,7 +15,7 @@
                 ></span>
             </button>
             <button
-                @click="activeTab = 'cleanup'; loadLowUsage()"
+                @click="activeTab = 'cleanup'; if (lowUsageTags.length === 0) loadLowUsage()"
                 :class="activeTab === 'cleanup' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
             >
@@ -26,7 +26,7 @@
                 ></span>
             </button>
             <button
-                @click="activeTab = 'merge'; loadMergeSuggestions()"
+                @click="activeTab = 'merge'; if (Object.keys(mergeGroups).length === 0) loadMergeSuggestions()"
                 :class="activeTab === 'merge' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
             >
@@ -827,8 +827,12 @@
                         }
 
                         this.selectedTags = [];
-                        await this.loadLowUsage();
-                        await this.loadTags();
+                        // Only reload the current tab to save time
+                        if (this.activeTab === "cleanup") {
+                            await this.loadLowUsage();
+                        } else {
+                            await this.loadTags();
+                        }
                     } catch (e) {
                         showToast(
                             "Delete operation failed: " + e.message,
@@ -876,8 +880,8 @@
 
                         if (data.success) {
                             showToast(data.message, "success");
+                            // Only reload merge suggestions, All Tags will update when user switches tabs
                             await this.loadMergeSuggestions();
-                            await this.loadTags();
                         } else {
                             showToast("Merge failed", "error");
                         }
