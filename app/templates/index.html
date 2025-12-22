@@ -659,10 +659,7 @@
         <!-- Merge Groups -->
         <div class="space-y-4">
             <template x-for="(group, prefix) in mergeGroups" :key="prefix">
-                <div
-                    class="bg-white shadow rounded-lg p-4"
-                    x-init="group.selected_items = group.selected_items || group[itemKey].map(i => i.id)"
-                >
+                <div class="bg-white shadow rounded-lg p-4">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center space-x-3">
                             <input
@@ -1093,7 +1090,15 @@
                     }
                     const resp = await fetch(url);
                     const data = await resp.json();
-                    this.mergeGroups = data.groups;
+                    // Initialize selected_items for each group
+                    const groups = data.groups;
+                    for (const prefix in groups) {
+                        const group = groups[prefix];
+                        group.selected_items = group[this.itemKey].map(
+                            (item) => item.id,
+                        );
+                    }
+                    this.mergeGroups = groups;
                 } catch (e) {
                     showToast(
                         "Failed to load suggestions: " + e.message,
