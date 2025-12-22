@@ -1379,6 +1379,13 @@
                 try {
                     for (const prefix of this.selectedGroups) {
                         const group = this.mergeGroups[prefix];
+                        if (!group) {
+                            console.warn(
+                                `Skipping group "${prefix}" - not found`,
+                            );
+                            this.operationProgress++;
+                            continue;
+                        }
                         const targetName =
                             this.bulkMergeTargetName ||
                             group.target_name ||
