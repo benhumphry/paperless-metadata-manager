@@ -1392,97 +1392,71 @@
 
             bulkMergeGroups() {
                 if (this.selectedGroups.length === 0) return;
+                if (!this.bulkMergeTargetName) {
+                    showToast(
+                        "Please enter a target name for the merged items",
+                        "error",
+                    );
+                    return;
+                }
 
-                // Collect all items to be merged with their target names
-                const mergeDetails = [];
-                let totalItems = 0;
+                // Collect ALL selected items from ALL selected groups
+                const allSourceIds = [];
+                const allItemNames = [];
                 for (const prefix of this.selectedGroups) {
                     const group = this.mergeGroups[prefix];
                     if (group) {
                         const sourceIds =
                             group.selected_items ||
                             group[this.itemKey].map((i) => i.id);
-                        const targetName =
-                            this.bulkMergeTargetName ||
-                            group.target_name ||
-                            group.suggested_name ||
-                            prefix;
-                        const itemNames = group[this.itemKey]
-                            .filter((item) => sourceIds.includes(item.id))
-                            .map((item) => item.name);
-                        totalItems += itemNames.length;
-                        mergeDetails.push(
-                            `"${targetName}": ${itemNames.join(", ")}`,
+                        const items = group[this.itemKey].filter((item) =>
+                            sourceIds.includes(item.id),
                         );
+                        for (const item of items) {
+                            if (!allSourceIds.includes(item.id)) {
+                                allSourceIds.push(item.id);
+                                allItemNames.push(item.name);
+                            }
+                        }
                     }
                 }
 
-                this.confirmTitle = `Merge ${this.selectedGroups.length} groups (${totalItems} items)?`;
-                this.confirmMessage = `This will perform the following merges:\n\n${mergeDetails.join("\n\n")}\n\nThis action cannot be undone.`;
+                if (allSourceIds.length < 2) {
+                    showToast("Need at least 2 items to merge", "error");
+                    return;
+                }
+
+                this.confirmTitle = `Merge ${allSourceIds.length} items into "${this.bulkMergeTargetName}"?`;
+                this.confirmMessage = `This will merge the following into "${this.bulkMergeTargetName}":\n\n${allItemNames.join(", ")}\n\nThis action cannot be undone.`;
                 this.confirmAction = async () => {
                     this.operationInProgress = true;
-                    this.operationProgress = 0;
-                    this.operationTotal = this.selectedGroups.length;
 
                     try {
-                        for (const prefix of this.selectedGroups) {
-                            const group = this.mergeGroups[prefix];
-                            if (!group) {
-                                console.warn(
-                                    `Skipping group "${prefix}" - not found`,
-                                );
-                                this.operationProgress++;
-                                continue;
-                            }
-                            const targetName =
-                                this.bulkMergeTargetName ||
-                                group.target_name ||
-                                group.suggested_name ||
-                                prefix;
-                            const sourceIds =
-                                group.selected_items ||
-                                group[this.itemKey].map((item) => item.id);
+                        const resp = await fetch(`${this.apiEndpoint}/merge`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids: allSourceIds,
+                                target_name: this.bulkMergeTargetName,
+                            }),
+                        });
 
-                            if (sourceIds.length < 2) {
-                                console.warn(
-                                    `Skipping group "${prefix}" - less than 2 items selected`,
-                                );
-                                this.operationProgress++;
-                                continue;
-                            }
-
-                            const resp = await fetch(
-                                `${this.apiEndpoint}/merge`,
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                        source_ids: sourceIds,
-                                        target_name: targetName,
-                                    }),
-                                },
-                            );
-
-                            if (!resp.ok) {
-                                const err = await resp.json();
-                                throw new Error(
-                                    `Failed to merge "${prefix}": ${err.detail || "Unknown error"}`,
-                                );
-                            }
-
-                            delete this.mergeGroups[prefix];
-                            this.operationProgress++;
+                        if (!resp.ok) {
+                            const err = await resp.json();
+                            throw new Error(err.detail || "Merge failed");
                         }
 
-                        showToast(
-                            `Merged ${this.selectedGroups.length} groups`,
-                            "success",
-                        );
+                        const result = await resp.json();
+                        showToast(result.message, "success");
+
+                        // Remove merged groups from display
+                        for (const prefix of this.selectedGroups) {
+                            delete this.mergeGroups[prefix];
+                        }
                         this.selectedGroups = [];
                         this.bulkMergeTargetName = "";
                         this.loadData();
+                        this.loadMergeSuggestions();
                     } catch (e) {
                         showToast("Merge error: " + e.message, "error");
                     }
