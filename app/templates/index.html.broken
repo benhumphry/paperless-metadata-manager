@@ -1,0 +1,3009 @@
+{% extends "base.html" %} {% block content %}
+<div x-data="tagManager()" x-init="loadTags()">
+    <!-- Tabs -->
+    <div class="mb-6 border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8">
+            <button
+                @click="activeTab = 'all'"
+                :class="activeTab === 'all' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+            >
+                Tags
+                <span
+                    class="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs"
+                    x-text="totalTags"
+                ></span>
+            </button>
+            <button
+                @click="activeTab = 'cleanup'; if (lowUsageTags.length === 0) loadLowUsage()"
+                :class="activeTab === 'cleanup' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+            >
+                Tag Cleanup
+                <span
+                    class="ml-2 bg-yellow-100 text-yellow-600 py-0.5 px-2 rounded-full text-xs"
+                    x-text="lowUsageTotalTags"
+                ></span>
+            </button>
+            <button
+                @click="activeTab = 'merge'; if (Object.keys(mergeGroups).length === 0) loadMergeSuggestions()"
+                :class="activeTab === 'merge' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+            >
+                Tag Merge
+                <span
+                    class="ml-2 bg-purple-100 text-purple-600 py-0.5 px-2 rounded-full text-xs"
+                    x-text="Object.keys(mergeGroups).length"
+                ></span>
+            </button>
+            <button
+                @click="activeTab = 'correspondents'; if (correspondents.length === 0) loadCorrespondents()"
+                :class="activeTab === 'correspondents' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+            >
+                Correspondents
+                <span
+                    class="ml-2 bg-green-100 text-green-600 py-0.5 px-2 rounded-full text-xs"
+                    x-text="totalCorrespondents"
+                ></span>
+            </button>
+            <button
+                @click="activeTab = 'correspondent-cleanup'; if (lowUsageCorrespondents.length === 0) loadLowUsageCorrespondents()"
+                :class="activeTab === 'correspondent-cleanup' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+            >
+                Correspondent Cleanup
+                <span
+                    class="ml-2 bg-orange-100 text-orange-600 py-0.5 px-2 rounded-full text-xs"
+                    x-text="lowUsageCorrespondentsTotalTags"
+                ></span>
+            </button>
+            <button
+                @click="activeTab = 'correspondent-merge'; if (Object.keys(correspondentMergeGroups).length === 0) loadCorrespondentMergeSuggestions()"
+                :class="activeTab === 'correspondent-merge' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+            >
+                Correspondent Merge
+                <span
+                    class="ml-2 bg-teal-100 text-teal-600 py-0.5 px-2 rounded-full text-xs"
+                    x-text="Object.keys(correspondentMergeGroups).length"
+                ></span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div x-show="loading" class="flex justify-center py-8">
+        <svg
+            class="animate-spin h-8 w-8 text-blue-500"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+        >
+            <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+            ></circle>
+            <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+        </svg>
+    </div>
+
+    <!-- All Tags Tab -->
+    <div x-show="activeTab === 'all' && !loading" x-cloak>
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <!-- Toolbar -->
+            <div
+                class="px-4 py-3 bg-gray-50 border-b flex items-center justify-between"
+            >
+                <div class="flex items-center space-x-4">
+                    <input
+                        type="text"
+                        x-model="filter"
+                        placeholder="Filter tags..."
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                    />
+
+                    <select
+                        x-model="sortBy"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                        <option value="name">Sort by Name</option>
+                        <option value="count">Sort by Count</option>
+                        <option value="count-desc">Sort by Count (desc)</option>
+                    </select>
+
+                    <select
+                        x-model.number="pageSize"
+                        @change="currentPage = 1; loadTags()"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                        <option value="20">20 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                        <option :value="totalTags" x-show="totalTags > 0">
+                            All
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    @click="loadTags()"
+                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+                >
+                    <svg
+                        class="w-4 h-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        ></path>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+
+            <!-- Tag Table -->
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Tag Name
+                        </th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Documents
+                        </th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Match Type
+                        </th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Color
+                        </th>
+                        <th
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="tag in filteredTags" :key="tag.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span
+                                    class="text-sm font-medium text-gray-900"
+                                    x-text="tag.name"
+                                ></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                    :class="tag.document_count === 0 ? 'bg-red-100 text-red-800' : tag.document_count === 1 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'"
+                                    x-text="tag.document_count"
+                                >
+                                </span>
+                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                                x-text="tag.match_type"
+                            ></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span
+                                    class="inline-block w-6 h-6 rounded"
+                                    :style="`background-color: ${tag.color}`"
+                                >
+                                </span>
+                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
+                            >
+                                <button
+                                    @click="editTag(tag)"
+                                    class="text-blue-600 hover:text-blue-900 mr-3"
+                                >
+                                    Edit
+                                </button>
+                                <button
+                                    @click="deleteIndividualTag(tag)"
+                                    class="text-red-600 hover:text-red-900"
+                                >
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            <!-- Pagination Controls -->
+            <div
+                class="px-4 py-3 bg-gray-50 border-t flex items-center justify-between"
+            >
+                <div class="text-sm text-gray-700">
+                    Showing
+                    <span
+                        class="font-medium"
+                        x-text="((currentPage - 1) * pageSize) + 1"
+                    ></span>
+                    to
+                    <span
+                        class="font-medium"
+                        x-text="Math.min(currentPage * pageSize, totalTags)"
+                    ></span>
+                    of <span class="font-medium" x-text="totalTags"></span> tags
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button
+                        @click="prevPage()"
+                        :disabled="currentPage === 1"
+                        :class="currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                    >
+                        Previous
+                    </button>
+
+                    <div class="flex items-center space-x-1">
+                        <template
+                            x-for="page in Array.from({length: totalPages}, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)"
+                            :key="page"
+                        >
+                            <button
+                                @click="goToPage(page)"
+                                :class="page === currentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+                                class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                                x-text="page"
+                            ></button>
+                        </template>
+                    </div>
+
+                    <button
+                        @click="nextPage()"
+                        :disabled="currentPage === totalPages"
+                        :class="currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cleanup Tab -->
+    <div x-show="activeTab === 'cleanup' && !loading" x-cloak>
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <!-- Toolbar -->
+            <div
+                class="px-4 py-3 bg-gray-50 border-b flex items-center justify-between"
+            >
+                <div class="flex items-center space-x-4">
+                    <label class="text-sm text-gray-600">
+                        Show tags with ≤
+                        <select
+                            x-model="maxDocs"
+                            @change="lowUsageCurrentPage = 1; loadLowUsage()"
+                            class="mx-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                        >
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="5">5</option>
+                        </select>
+                        documents
+                    </label>
+
+                    <span class="text-sm text-gray-500">
+                        (excluding auto-match tags and patterns: {{
+                        exclude_patterns }})
+                    </span>
+
+                    <select
+                        x-model.number="lowUsagePageSize"
+                        @change="lowUsageCurrentPage = 1; loadLowUsage()"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                        <option value="20">20 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                        <option
+                            :value="lowUsageTotalTags"
+                            x-show="lowUsageTotalTags > 0"
+                        >
+                            All
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    @click="deleteSelectedTags()"
+                    :disabled="selectedTags.length === 0 || operationInProgress"
+                    :class="(selectedTags.length === 0 || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'"
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600"
+                >
+                    <svg
+                        x-show="operationInProgress"
+                        class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                        ></circle>
+                        <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                    </svg>
+                    <span x-show="!operationInProgress"
+                        >Delete Selected (<span
+                            x-text="selectedTags.length"
+                        ></span
+                        >)</span
+                    >
+                    <span x-show="operationInProgress && operationTotal > 0">
+                        Deleting <span x-text="operationProgress"></span>/<span
+                            x-text="operationTotal"
+                        ></span
+                        >...
+                    </span>
+                    <span x-show="operationInProgress && operationTotal === 0"
+                        >Deleting...</span
+                    >
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div
+                x-show="operationInProgress && operationTotal > 0"
+                class="px-4 py-2 bg-gray-50 border-t"
+            >
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                        class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        :style="`width: ${(operationProgress / operationTotal) * 100}%`"
+                    ></div>
+                </div>
+                <div class="text-xs text-gray-600 mt-1 text-center">
+                    <span x-text="operationProgress"></span> of
+                    <span x-text="operationTotal"></span> tags processed
+                </div>
+            </div>
+
+            <!-- Select All -->
+            <div class="px-4 py-2 bg-gray-100 border-b">
+                <label class="inline-flex items-center">
+                    <input
+                        type="checkbox"
+                        @change="toggleSelectAll($event.target.checked, 'lowUsage')"
+                        :checked="selectedTags.length === lowUsageTags.length && lowUsageTags.length > 0"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span class="ml-2 text-sm text-gray-600">Select All</span>
+                </label>
+            </div>
+
+            <!-- Tag List -->
+            <div class="divide-y divide-gray-200">
+                <template x-for="tag in lowUsageTags" :key="tag.id">
+                    <div class="px-4 py-3 flex items-center hover:bg-gray-50">
+                        <input
+                            type="checkbox"
+                            :value="tag.id"
+                            x-model="selectedTags"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span
+                            class="ml-3 text-sm font-medium text-gray-900"
+                            x-text="tag.name"
+                        ></span>
+                        <span
+                            class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                            :class="tag.document_count === 0 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'"
+                            x-text="tag.document_count + ' docs'"
+                        >
+                        </span>
+                    </div>
+                </template>
+
+                <div
+                    x-show="lowUsageTags.length === 0"
+                    class="px-4 py-8 text-center text-gray-500"
+                >
+                    No low-usage tags found. Your tags are well-maintained! 🎉
+                </div>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div
+                x-show="lowUsageTotalPages > 1"
+                class="px-4 py-3 bg-gray-50 border-t flex items-center justify-between"
+            >
+                <div class="text-sm text-gray-700">
+                    Showing
+                    <span
+                        class="font-medium"
+                        x-text="((lowUsageCurrentPage - 1) * lowUsagePageSize) + 1"
+                    ></span>
+                    to
+                    <span
+                        class="font-medium"
+                        x-text="Math.min(lowUsageCurrentPage * lowUsagePageSize, lowUsageTotalTags)"
+                    ></span>
+                    of
+                    <span class="font-medium" x-text="lowUsageTotalTags"></span>
+                    tags
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button
+                        @click="prevLowUsagePage()"
+                        :disabled="lowUsageCurrentPage === 1"
+                        :class="lowUsageCurrentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                    >
+                        Previous
+                    </button>
+
+                    <div class="flex items-center space-x-1">
+                        <template
+                            x-for="page in Array.from({length: lowUsageTotalPages}, (_, i) => i + 1).filter(p => p === 1 || p === lowUsageTotalPages || Math.abs(p - lowUsageCurrentPage) <= 1)"
+                            :key="page"
+                        >
+                            <button
+                                @click="goToLowUsagePage(page)"
+                                :class="page === lowUsageCurrentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+                                class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                                x-text="page"
+                            ></button>
+                        </template>
+                    </div>
+
+                    <button
+                        @click="nextLowUsagePage()"
+                        :disabled="lowUsageCurrentPage === lowUsageTotalPages"
+                        :class="lowUsageCurrentPage === lowUsageTotalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Merge Tab -->
+    <div x-show="activeTab === 'merge' && !loading" x-cloak>
+        <!-- Custom Merge Section -->
+        <div class="mb-6 bg-white shadow rounded-lg p-4">
+            <h4 class="text-md font-medium text-gray-900 mb-3">Custom Merge</h4>
+            <div class="space-y-3">
+                <div class="flex items-center space-x-2">
+                    <input
+                        type="text"
+                        x-model="customMergeSearch"
+                        @input="searchTagsForCustomMerge()"
+                        placeholder="Search tags to merge..."
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <span class="text-sm text-gray-500">
+                        <span x-text="customMergeSelectedTags.length"></span>
+                        selected
+                    </span>
+                </div>
+
+                <!-- Search Results -->
+                <div
+                    x-show="customMergeSearchResults.length > 0"
+                    class="max-h-48 overflow-y-auto border border-gray-300 rounded-md bg-gray-50"
+                >
+                    <template
+                        x-for="tag in customMergeSearchResults"
+                        :key="tag.id"
+                    >
+                        <div
+                            class="px-3 py-2 hover:bg-gray-100 flex items-center justify-between border-b last:border-b-0"
+                        >
+                            <div class="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    :value="tag.id"
+                                    x-model="customMergeSelectedTags"
+                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span class="text-sm" x-text="tag.name"></span>
+                                <span
+                                    class="text-xs text-gray-500"
+                                    x-text="`(${tag.document_count} docs)`"
+                                ></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Selected Tags Display -->
+                <div
+                    x-show="customMergeSelectedTags.length > 0"
+                    class="border-t pt-3"
+                >
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <template
+                            x-for="tagId in customMergeSelectedTags"
+                            :key="tagId"
+                        >
+                            <span
+                                class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                                <span
+                                    x-text="tags.find(t => t.id === tagId)?.name || tagId"
+                                ></span>
+                                <button
+                                    @click="customMergeSelectedTags = customMergeSelectedTags.filter(id => id !== tagId)"
+                                    class="ml-1 text-blue-600 hover:text-blue-800"
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        </template>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input
+                            type="text"
+                            x-model="customMergeTargetName"
+                            placeholder="Target tag name"
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <button
+                            @click="performCustomMerge()"
+                            :disabled="customMergeSelectedTags.length < 2 || !customMergeTargetName || operationInProgress"
+                            :class="(customMergeSelectedTags.length < 2 || !customMergeTargetName || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm"
+                        >
+                            Merge Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4 flex items-center space-x-4">
+            <input
+                type="text"
+                x-model="mergePrefix"
+                @keyup.enter="loadMergeSuggestions()"
+                placeholder="Filter by prefix (e.g., 'account')..."
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+                @click="loadMergeSuggestions()"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
+            >
+                Find Suggestions
+            </button>
+        </div>
+
+        <!-- Bulk Merge Toolbar -->
+        <div
+            x-show="Object.keys(mergeGroups).length > 0"
+            class="mb-4 bg-white shadow rounded-lg p-4"
+        >
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <label class="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            @change="selectedGroups = $event.target.checked ? Object.keys(mergeGroups) : []"
+                            :checked="selectedGroups.length === Object.keys(mergeGroups).length && Object.keys(mergeGroups).length > 0"
+                            class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span class="ml-2 text-sm text-gray-700"
+                            >Select All Groups</span
+                        >
+                    </label>
+                    <span class="text-sm text-gray-500">
+                        <span x-text="selectedGroups.length"></span> of
+                        <span x-text="Object.keys(mergeGroups).length"></span>
+                        groups selected
+                    </span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input
+                        type="text"
+                        x-model="bulkMergeTargetName"
+                        placeholder="Target tag name (e.g., 'Employment')"
+                        :disabled="selectedGroups.length === 0"
+                        class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                    />
+                    <button
+                        @click="bulkMergeGroups()"
+                        :disabled="selectedGroups.length === 0 || !bulkMergeTargetName || operationInProgress"
+                        :class="(selectedGroups.length === 0 || !bulkMergeTargetName || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                        class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md text-sm"
+                    >
+                        <svg
+                            x-show="operationInProgress"
+                            class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <span x-show="!operationInProgress"
+                            >Merge Selected Groups</span
+                        >
+                        <span x-show="operationInProgress">Merging...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <template x-for="(group, prefix) in mergeGroups" :key="prefix">
+                <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <div
+                        class="px-4 py-3 bg-purple-50 border-b flex items-center justify-between"
+                    >
+                        <div class="flex items-center space-x-3">
+                            <input
+                                type="checkbox"
+                                :value="prefix"
+                                x-model="selectedGroups"
+                                class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <div>
+                                <span
+                                    class="font-medium text-purple-900"
+                                    x-text="prefix + '*'"
+                                ></span>
+                                <span
+                                    class="ml-2 text-sm text-purple-600"
+                                    x-text="group.tags.length + ' tags, ' + group.total_documents + ' documents'"
+                                ></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input
+                                type="text"
+                                x-model="group.target_name"
+                                :placeholder="group.suggested_name"
+                                class="px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                            <button
+                                @click="mergeTags(prefix, group)"
+                                :disabled="!group.selected_tags || group.selected_tags.length === 0 || operationInProgress"
+                                :class="(!group.selected_tags || group.selected_tags.length === 0 || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                                class="inline-flex items-center px-3 py-1 bg-purple-600 text-white text-sm rounded"
+                            >
+                                <svg
+                                    x-show="operationInProgress"
+                                    class="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        class="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        stroke-width="4"
+                                    ></circle>
+                                    <path
+                                        class="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                </svg>
+                                <span x-show="!operationInProgress">Merge</span>
+                                <span x-show="operationInProgress">...</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="px-4 py-2 bg-gray-100 border-b">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="inline-flex items-center">
+                                <input
+                                    type="checkbox"
+                                    @change="group.selected_tags = $event.target.checked ? group.tags.map(t => t.id) : []"
+                                    :checked="group.selected_tags && group.selected_tags.length === group.tags.length"
+                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span class="ml-2 text-sm text-gray-600"
+                                    >Select All</span
+                                >
+                            </label>
+                            <span class="text-xs text-gray-500">
+                                <span
+                                    x-text="group.selected_tags ? group.selected_tags.length : 0"
+                                ></span>
+                                of
+                                <span x-text="group.tags.length"></span>
+                                selected
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input
+                                type="text"
+                                x-model="group.searchQuery"
+                                @input="searchTagsForGroup(prefix, group)"
+                                placeholder="Search to add more tags..."
+                                class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
+                            />
+                            <span
+                                class="text-xs text-gray-500"
+                                x-show="group.searchResults && group.searchResults.length > 0"
+                            >
+                                <span
+                                    x-text="group.searchResults.length"
+                                ></span>
+                                found
+                            </span>
+                        </div>
+                        <div
+                            x-show="group.searchResults && group.searchResults.length > 0"
+                            class="mt-2 max-h-32 overflow-y-auto border border-gray-300 rounded bg-white"
+                        >
+                            <template
+                                x-for="result in group.searchResults"
+                                :key="result.id"
+                            >
+                                <div
+                                    class="px-2 py-1 hover:bg-gray-50 flex items-center justify-between text-sm"
+                                >
+                                    <span
+                                        x-text="result.name"
+                                        class="flex-1"
+                                    ></span>
+                                    <button
+                                        @click="addTagToGroup(prefix, group, result)"
+                                        class="px-2 py-0.5 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="divide-y divide-gray-200">
+                        <template x-for="tag in group.tags" :key="tag.id">
+                            <div
+                                class="px-4 py-2 flex items-center hover:bg-gray-50"
+                            >
+                                <input
+                                    type="checkbox"
+                                    :value="tag.id"
+                                    x-model="group.selected_tags"
+                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span
+                                    class="ml-3 flex-1 text-sm text-gray-900"
+                                    x-text="tag.name"
+                                ></span>
+                                <span
+                                    class="text-sm text-gray-500"
+                                    x-text="tag.document_count + ' docs'"
+                                ></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <div
+                x-show="Object.keys(mergeGroups).length === 0"
+                class="bg-white shadow rounded-lg px-4 py-8 text-center text-gray-500"
+            >
+                No merge suggestions found. Try entering a prefix to filter.
+            </div>
+        </div>
+    </div>
+
+    <!-- All Correspondents Tab -->
+    <div x-show="activeTab === 'correspondents' && !loading" x-cloak>
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <!-- Toolbar -->
+            <div
+                class="px-4 py-3 bg-gray-50 border-b flex items-center justify-between"
+            >
+                <div class="flex items-center space-x-4">
+                    <input
+                        type="text"
+                        x-model="correspondentFilter"
+                        placeholder="Filter correspondents..."
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                    />
+
+                    <select
+                        x-model="correspondentSortBy"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                        <option value="name">Sort by Name</option>
+                        <option value="count">Sort by Count</option>
+                        <option value="count-desc">Sort by Count (desc)</option>
+                    </select>
+
+                    <select
+                        x-model.number="correspondentPageSize"
+                        @change="correspondentCurrentPage = 1; loadCorrespondents()"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                        <option value="20">20 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                        <option
+                            :value="totalCorrespondents"
+                            x-show="totalCorrespondents > 0"
+                        >
+                            All
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    @click="loadCorrespondents()"
+                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+                >
+                    <svg
+                        class="w-4 h-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        ></path>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+
+            <!-- Correspondent Table -->
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Correspondent Name
+                        </th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Documents
+                        </th>
+                        <th
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Match Type
+                        </th>
+                        <th
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template
+                        x-for="correspondent in filteredCorrespondents"
+                        :key="correspondent.id"
+                    >
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span
+                                    class="text-sm font-medium text-gray-900"
+                                    x-text="correspondent.name"
+                                ></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                    :class="correspondent.document_count === 0 ? 'bg-red-100 text-red-800' : correspondent.document_count === 1 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'"
+                                    x-text="correspondent.document_count"
+                                >
+                                </span>
+                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                                x-text="correspondent.match_type"
+                            ></td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
+                            >
+                                <button
+                                    @click="editCorrespondent(correspondent)"
+                                    class="text-blue-600 hover:text-blue-900 mr-3"
+                                >
+                                    Edit
+                                </button>
+                                <button
+                                    @click="deleteIndividualCorrespondent(correspondent)"
+                                    class="text-red-600 hover:text-red-900"
+                                >
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+
+            <!-- Pagination Controls -->
+            <div
+                class="px-4 py-3 bg-gray-50 border-t flex items-center justify-between"
+            >
+                <div class="text-sm text-gray-700">
+                    Showing
+                    <span
+                        class="font-medium"
+                        x-text="((correspondentCurrentPage - 1) * correspondentPageSize) + 1"
+                    ></span>
+                    to
+                    <span
+                        class="font-medium"
+                        x-text="Math.min(correspondentCurrentPage * correspondentPageSize, totalCorrespondents)"
+                    ></span>
+                    of
+                    <span
+                        class="font-medium"
+                        x-text="totalCorrespondents"
+                    ></span>
+                    correspondents
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button
+                        @click="prevCorrespondentPage()"
+                        :disabled="correspondentCurrentPage === 1"
+                        :class="correspondentCurrentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                    >
+                        Previous
+                    </button>
+
+                    <div class="flex items-center space-x-1">
+                        <template
+                            x-for="page in Array.from({length: correspondentTotalPages}, (_, i) => i + 1).filter(p => p === 1 || p === correspondentTotalPages || Math.abs(p - correspondentCurrentPage) <= 1)"
+                            :key="page"
+                        >
+                            <button
+                                @click="goToCorrespondentPage(page)"
+                                :class="page === correspondentCurrentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+                                class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                                x-text="page"
+                            ></button>
+                        </template>
+                    </div>
+
+                    <button
+                        @click="nextCorrespondentPage()"
+                        :disabled="correspondentCurrentPage === correspondentTotalPages"
+                        :class="correspondentCurrentPage === correspondentTotalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Correspondent Cleanup Tab -->
+    <div x-show="activeTab === 'correspondent-cleanup' && !loading" x-cloak>
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <!-- Toolbar -->
+            <div
+                class="px-4 py-3 bg-gray-50 border-b flex items-center justify-between"
+            >
+                <div class="flex items-center space-x-4">
+                    <label class="text-sm text-gray-600">
+                        Show correspondents with ≤
+                        <select
+                            x-model="correspondentMaxDocs"
+                            @change="correspondentCleanupCurrentPage = 1; loadLowUsageCorrespondents()"
+                            class="mx-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                        >
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="5">5</option>
+                        </select>
+                        documents
+                    </label>
+
+                    <span class="text-sm text-gray-500">
+                        (excluding auto-match correspondents and patterns: {{
+                        exclude_patterns }})
+                    </span>
+
+                    <select
+                        x-model.number="correspondentCleanupPageSize"
+                        @change="correspondentCleanupCurrentPage = 1; loadLowUsageCorrespondents()"
+                        class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    >
+                        <option value="20">20 per page</option>
+                        <option value="50">50 per page</option>
+                        <option value="100">100 per page</option>
+                        <option
+                            :value="lowUsageCorrespondentsTotalTags"
+                            x-show="lowUsageCorrespondentsTotalTags > 0"
+                        >
+                            All
+                        </option>
+                    </select>
+                </div>
+
+                <button
+                    @click="deleteSelectedCorrespondents()"
+                    :disabled="selectedCorrespondents.length === 0 || operationInProgress"
+                    :class="(selectedCorrespondents.length === 0 || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'"
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600"
+                >
+                    <svg
+                        x-show="operationInProgress"
+                        class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                        ></circle>
+                        <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                    </svg>
+                    <span x-show="!operationInProgress"
+                        >Delete Selected (<span
+                            x-text="selectedCorrespondents.length"
+                        ></span
+                        >)</span
+                    >
+                    <span x-show="operationInProgress && operationTotal > 0">
+                        Deleting <span x-text="operationProgress"></span>/<span
+                            x-text="operationTotal"
+                        ></span
+                        >...
+                    </span>
+                    <span x-show="operationInProgress && operationTotal === 0"
+                        >Deleting...</span
+                    >
+                </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div
+                x-show="operationInProgress && operationTotal > 0"
+                class="px-4 py-2 bg-gray-50 border-t"
+            >
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                        class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        :style="`width: ${(operationProgress / operationTotal) * 100}%`"
+                    ></div>
+                </div>
+                <div class="text-xs text-gray-600 mt-1 text-center">
+                    <span x-text="operationProgress"></span> of
+                    <span x-text="operationTotal"></span> correspondents
+                    processed
+                </div>
+            </div>
+
+            <!-- Select All -->
+            <div class="px-4 py-2 bg-gray-100 border-b">
+                <label class="inline-flex items-center">
+                    <input
+                        type="checkbox"
+                        @change="toggleSelectAll($event.target.checked, 'lowUsageCorrespondents')"
+                        :checked="selectedCorrespondents.length === lowUsageCorrespondents.length && lowUsageCorrespondents.length > 0"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span class="ml-2 text-sm text-gray-600">Select All</span>
+                </label>
+            </div>
+
+            <!-- Correspondent List -->
+            <div class="divide-y divide-gray-200">
+                <template
+                    x-for="correspondent in lowUsageCorrespondents"
+                    :key="correspondent.id"
+                >
+                    <div class="px-4 py-3 flex items-center hover:bg-gray-50">
+                        <input
+                            type="checkbox"
+                            :value="correspondent.id"
+                            x-model="selectedCorrespondents"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span
+                            class="ml-3 text-sm font-medium text-gray-900"
+                            x-text="correspondent.name"
+                        ></span>
+                        <span
+                            class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                            :class="correspondent.document_count === 0 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'"
+                            x-text="correspondent.document_count + ' docs'"
+                        >
+                        </span>
+                    </div>
+                </template>
+
+                <div
+                    x-show="lowUsageCorrespondents.length === 0"
+                    class="px-4 py-8 text-center text-gray-500"
+                >
+                    No low-usage correspondents found. Your correspondents are
+                    well-maintained!
+                </div>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div
+                x-show="correspondentCleanupTotalPages > 1"
+                class="px-4 py-3 bg-gray-50 border-t flex items-center justify-between"
+            >
+                <div class="text-sm text-gray-700">
+                    Showing
+                    <span
+                        class="font-medium"
+                        x-text="((correspondentCleanupCurrentPage - 1) * correspondentCleanupPageSize) + 1"
+                    ></span>
+                    to
+                    <span
+                        class="font-medium"
+                        x-text="Math.min(correspondentCleanupCurrentPage * correspondentCleanupPageSize, lowUsageCorrespondentsTotalTags)"
+                    ></span>
+                    of
+                    <span
+                        class="font-medium"
+                        x-text="lowUsageCorrespondentsTotalTags"
+                    ></span>
+                    correspondents
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button
+                        @click="prevCorrespondentCleanupPage()"
+                        :disabled="correspondentCleanupCurrentPage === 1"
+                        :class="correspondentCleanupCurrentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                    >
+                        Previous
+                    </button>
+
+                    <div class="flex items-center space-x-1">
+                        <template
+                            x-for="page in Array.from({length: correspondentCleanupTotalPages}, (_, i) => i + 1).filter(p => p === 1 || p === correspondentCleanupTotalPages || Math.abs(p - correspondentCleanupCurrentPage) <= 1)"
+                            :key="page"
+                        >
+                            <button
+                                @click="goToCorrespondentCleanupPage(page)"
+                                :class="page === correspondentCleanupCurrentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+                                class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                                x-text="page"
+                            ></button>
+                        </template>
+                    </div>
+
+                    <button
+                        @click="nextCorrespondentCleanupPage()"
+                        :disabled="correspondentCleanupCurrentPage === correspondentCleanupTotalPages"
+                        :class="correspondentCleanupCurrentPage === correspondentCleanupTotalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                        class="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                    >
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Correspondent Merge Tab -->
+    <div x-show="activeTab === 'correspondent-merge' && !loading" x-cloak>
+        <!-- Custom Merge Section -->
+        <div class="mb-6 bg-white shadow rounded-lg p-4">
+            <h4 class="text-md font-medium text-gray-900 mb-3">Custom Merge</h4>
+            <div class="space-y-3">
+                <div class="flex items-center space-x-2">
+                    <input
+                        type="text"
+                        x-model="customCorrespondentMergeSearch"
+                        @input="searchCorrespondentsForCustomMerge()"
+                        placeholder="Search correspondents to merge..."
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <span class="text-sm text-gray-500">
+                        <span
+                            x-text="customMergeSelectedCorrespondents.length"
+                        ></span>
+                        selected
+                    </span>
+                </div>
+
+                <!-- Search Results -->
+                <div
+                    x-show="customCorrespondentMergeSearchResults.length > 0"
+                    class="max-h-48 overflow-y-auto border border-gray-300 rounded-md bg-gray-50"
+                >
+                    <template
+                        x-for="correspondent in customCorrespondentMergeSearchResults"
+                        :key="correspondent.id"
+                    >
+                        <div
+                            class="px-3 py-2 hover:bg-gray-100 flex items-center justify-between border-b last:border-b-0"
+                        >
+                            <div class="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    :value="correspondent.id"
+                                    x-model="customMergeSelectedCorrespondents"
+                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span
+                                    class="text-sm"
+                                    x-text="correspondent.name"
+                                ></span>
+                                <span
+                                    class="text-xs text-gray-500"
+                                    x-text="`(${correspondent.document_count} docs)`"
+                                ></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Selected Correspondents Display -->
+                <div
+                    x-show="customMergeSelectedCorrespondents.length > 0"
+                    class="border-t pt-3"
+                >
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <template
+                            x-for="correspondentId in customMergeSelectedCorrespondents"
+                            :key="correspondentId"
+                        >
+                            <span
+                                class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                                <span
+                                    x-text="correspondents.find(c => c.id === correspondentId)?.name || correspondentId"
+                                ></span>
+                                <button
+                                    @click="customMergeSelectedCorrespondents = customMergeSelectedCorrespondents.filter(id => id !== correspondentId)"
+                                    class="ml-1 text-blue-600 hover:text-blue-800"
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        </template>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input
+                            type="text"
+                            x-model="customMergeCorrespondentTargetName"
+                            placeholder="Target correspondent name"
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <button
+                            @click="performCustomCorrespondentMerge()"
+                            :disabled="customMergeSelectedCorrespondents.length < 2 || !customMergeCorrespondentTargetName || operationInProgress"
+                            :class="(customMergeSelectedCorrespondents.length < 2 || !customMergeCorrespondentTargetName || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm"
+                        >
+                            Merge Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4 flex items-center space-x-4">
+            <input
+                type="text"
+                x-model="correspondentMergePrefix"
+                @keyup.enter="loadCorrespondentMergeSuggestions()"
+                placeholder="Filter by prefix (e.g., 'john')..."
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+                @click="loadCorrespondentMergeSuggestions()"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
+            >
+                Find Suggestions
+            </button>
+        </div>
+
+        <!-- Bulk Merge Toolbar -->
+        <div
+            x-show="Object.keys(correspondentMergeGroups).length > 0"
+            class="mb-4 bg-white shadow rounded-lg p-4"
+        >
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <label class="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            @change="selectedCorrespondentGroups = $event.target.checked ? Object.keys(correspondentMergeGroups) : []"
+                            :checked="selectedCorrespondentGroups.length === Object.keys(correspondentMergeGroups).length && Object.keys(correspondentMergeGroups).length > 0"
+                            class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span class="ml-2 text-sm text-gray-700"
+                            >Select All Groups</span
+                        >
+                    </label>
+                    <span class="text-sm text-gray-500">
+                        <span
+                            x-text="selectedCorrespondentGroups.length"
+                        ></span>
+                        of
+                        <span
+                            x-text="Object.keys(correspondentMergeGroups).length"
+                        ></span>
+                        groups selected
+                    </span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input
+                        type="text"
+                        x-model="bulkMergeCorrespondentTargetName"
+                        placeholder="Target correspondent name (e.g., 'John Smith')"
+                        :disabled="selectedCorrespondentGroups.length === 0"
+                        class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                    />
+                    <button
+                        @click="bulkMergeCorrespondentGroups()"
+                        :disabled="selectedCorrespondentGroups.length === 0 || !bulkMergeCorrespondentTargetName || operationInProgress"
+                        :class="(selectedCorrespondentGroups.length === 0 || !bulkMergeCorrespondentTargetName || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                        class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md text-sm"
+                    >
+                        <svg
+                            x-show="operationInProgress"
+                            class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <span x-show="!operationInProgress"
+                            >Merge Selected Groups</span
+                        >
+                        <span x-show="operationInProgress">Merging...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <template
+                x-for="(group, prefix) in correspondentMergeGroups"
+                :key="prefix"
+            >
+                <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <div
+                        class="px-4 py-3 bg-purple-50 border-b flex items-center justify-between"
+                    >
+                        <div class="flex items-center space-x-3">
+                            <input
+                                type="checkbox"
+                                :value="prefix"
+                                x-model="selectedCorrespondentGroups"
+                                class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <div>
+                                <span
+                                    class="font-medium text-purple-900"
+                                    x-text="prefix + '*'"
+                                ></span>
+                                <span
+                                    class="ml-2 text-sm text-purple-600"
+                                    x-text="group.correspondents.length + ' correspondents, ' + group.total_documents + ' documents'"
+                                ></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input
+                                type="text"
+                                x-model="group.target_name"
+                                :placeholder="group.suggested_name"
+                                class="px-2 py-1 text-sm border border-gray-300 rounded"
+                            />
+                            <button
+                                @click="mergeCorrespondents(prefix, group)"
+                                :disabled="!group.selected_correspondents || group.selected_correspondents.length === 0 || operationInProgress"
+                                :class="(!group.selected_correspondents || group.selected_correspondents.length === 0 || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                                class="inline-flex items-center px-3 py-1 bg-purple-600 text-white text-sm rounded"
+                            >
+                                <svg
+                                    x-show="operationInProgress"
+                                    class="animate-spin -ml-1 mr-1 h-3 w-3 text-white"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        class="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        stroke-width="4"
+                                    ></circle>
+                                    <path
+                                        class="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                </svg>
+                                <span x-show="!operationInProgress">Merge</span>
+                                <span x-show="operationInProgress">...</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="px-4 py-2 bg-gray-100 border-b">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="inline-flex items-center">
+                                <input
+                                    type="checkbox"
+                                    @change="group.selected_correspondents = $event.target.checked ? group.correspondents.map(c => c.id) : []"
+                                    :checked="group.selected_correspondents && group.selected_correspondents.length === group.correspondents.length"
+                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span class="ml-2 text-sm text-gray-600"
+                                    >Select All</span
+                                >
+                            </label>
+                            <span class="text-xs text-gray-500">
+                                <span
+                                    x-text="group.selected_correspondents ? group.selected_correspondents.length : 0"
+                                ></span>
+                                of
+                                <span
+                                    x-text="group.correspondents.length"
+                                ></span>
+                                selected
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input
+                                type="text"
+                                x-model="group.searchQuery"
+                                @input="searchCorrespondentsForGroup(prefix, group)"
+                                placeholder="Search to add more correspondents..."
+                                class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
+                            />
+                            <span
+                                class="text-xs text-gray-500"
+                                x-show="group.searchResults && group.searchResults.length > 0"
+                            >
+                                <span
+                                    x-text="group.searchResults.length"
+                                ></span>
+                                found
+                            </span>
+                        </div>
+                        <div
+                            x-show="group.searchResults && group.searchResults.length > 0"
+                            class="mt-2 max-h-32 overflow-y-auto border border-gray-300 rounded bg-white"
+                        >
+                            <template
+                                x-for="result in group.searchResults"
+                                :key="result.id"
+                            >
+                                <div
+                                    class="px-2 py-1 hover:bg-gray-50 flex items-center justify-between text-sm"
+                                >
+                                    <span
+                                        x-text="result.name"
+                                        class="flex-1"
+                                    ></span>
+                                    <button
+                                        @click="addCorrespondentToGroup(prefix, group, result)"
+                                        class="px-2 py-0.5 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="divide-y divide-gray-200">
+                        <template
+                            x-for="correspondent in group.correspondents"
+                            :key="correspondent.id"
+                        >
+                            <div
+                                class="px-4 py-2 flex items-center hover:bg-gray-50"
+                            >
+                                <input
+                                    type="checkbox"
+                                    :value="correspondent.id"
+                                    x-model="group.selected_correspondents"
+                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span
+                                    class="ml-3 flex-1 text-sm text-gray-900"
+                                    x-text="correspondent.name"
+                                ></span>
+                                <span
+                                    class="text-sm text-gray-500"
+                                    x-text="correspondent.document_count + ' docs'"
+                                ></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <div
+                x-show="Object.keys(correspondentMergeGroups).length === 0"
+                class="bg-white shadow rounded-lg px-4 py-8 text-center text-gray-500"
+            >
+                No merge suggestions found. Try entering a prefix to filter.
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div
+        x-show="showConfirm"
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto"
+        aria-labelledby="modal-title"
+        role="dialog"
+        aria-modal="true"
+    >
+        <div
+            class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+        >
+            <div
+                class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                @click="showConfirm = false"
+            ></div>
+            <div
+                class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6"
+            >
+                <div>
+                    <div
+                        class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100"
+                    >
+                        <svg
+                            class="h-6 w-6 text-red-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-5">
+                        <h3
+                            class="text-lg leading-6 font-medium text-gray-900"
+                            x-text="confirmTitle"
+                        ></h3>
+                        <div class="mt-2">
+                            <p
+                                class="text-sm text-gray-500"
+                                x-text="confirmMessage"
+                            ></p>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense"
+                >
+                    <button
+                        @click="confirmAction(); showConfirm = false"
+                        type="button"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:col-start-2 sm:text-sm"
+                    >
+                        Confirm
+                    </button>
+                    <button
+                        @click="showConfirm = false"
+                        type="button"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:col-start-1 sm:text-sm"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div
+        x-show="showEditModal"
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto"
+        aria-labelledby="modal-title"
+        role="dialog"
+        aria-modal="true"
+    >
+        <div
+            class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+        >
+            <div
+                class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                @click="showEditModal = false"
+            ></div>
+            <div
+                class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6"
+            >
+                <div>
+                    <div class="mt-3 text-center sm:mt-5">
+                        <h3
+                            class="text-lg leading-6 font-medium text-gray-900"
+                            x-text="editModalTitle"
+                        ></h3>
+                        <div class="mt-4 space-y-4">
+                            <!-- Name Field -->
+                            <div class="text-left">
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                    >Name</label
+                                >
+                                <input
+                                    type="text"
+                                    x-model="editForm.name"
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                            </div>
+                            <!-- Color Field (for tags only) -->
+                            <div class="text-left" x-show="editType === 'tag'">
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                    >Color</label
+                                >
+                                <input
+                                    type="color"
+                                    x-model="editForm.color"
+                                    class="mt-1 block w-full h-10 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense"
+                >
+                    <button
+                        @click="saveEdit()"
+                        :disabled="operationInProgress"
+                        :class="operationInProgress ? 'opacity-50 cursor-not-allowed' : ''"
+                        type="button"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:col-start-2 sm:text-sm"
+                    >
+                        <svg
+                            x-show="operationInProgress"
+                            class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <span x-show="!operationInProgress">Save</span>
+                        <span x-show="operationInProgress">Saving...</span>
+                    </button>
+                    <button
+                        @click="showEditModal = false"
+                        type="button"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:col-start-1 sm:text-sm"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+    function tagManager() {
+        return {
+            // State
+            activeTab: "all",
+            loading: false,
+            operationInProgress: false,
+            operationProgress: 0,
+            operationTotal: 0,
+            tags: [],
+            lowUsageTags: [],
+            mergeGroups: {},
+            selectedTags: [],
+            selectedGroups: [],
+            bulkMergeTargetName: "",
+            filter: "",
+            sortBy: "name",
+            maxDocs: "1",
+            mergePrefix: "",
+
+            // Custom merge state
+            customMergeSearch: "",
+            customMergeSearchResults: [],
+            customMergeSelectedTags: [],
+            customMergeTargetName: "",
+            customCorrespondentMergeSearch: "",
+            customCorrespondentMergeSearchResults: [],
+            customMergeSelectedCorrespondents: [],
+            customMergeCorrespondentTargetName: "",
+
+            // Pagination state
+            currentPage: 1,
+            pageSize: 50,
+            totalPages: 1,
+            totalTags: 0,
+            lowUsageCurrentPage: 1,
+            lowUsagePageSize: 50,
+            lowUsageTotalPages: 1,
+            lowUsageTotalTags: 0,
+
+            // Correspondent state
+            correspondents: [],
+            lowUsageCorrespondents: [],
+            correspondentMergeGroups: {},
+            selectedCorrespondents: [],
+            selectedCorrespondentGroups: [],
+            bulkMergeCorrespondentTargetName: "",
+            correspondentFilter: "",
+            correspondentSortBy: "name",
+            correspondentMaxDocs: "0",
+            correspondentMergePrefix: "",
+
+            // Correspondent pagination state
+            correspondentCurrentPage: 1,
+            correspondentPageSize: 50,
+            correspondentTotalPages: 1,
+            totalCorrespondents: 0,
+            correspondentCleanupCurrentPage: 1,
+            correspondentCleanupPageSize: 50,
+            correspondentCleanupTotalPages: 1,
+            lowUsageCorrespondentsTotalTags: 0,
+
+            // Confirmation modal
+            showConfirm: false,
+            confirmTitle: "",
+            confirmMessage: "",
+            confirmAction: () => {},
+
+            // Edit modal
+            showEditModal: false,
+            editModalTitle: "",
+            editType: "", // 'tag' or 'correspondent'
+            editId: null,
+            editForm: {
+                name: "",
+                color: "",
+            },
+
+            // Computed
+            get filteredTags() {
+                let result = this.tags;
+
+                if (this.filter) {
+                    const f = this.filter.toLowerCase();
+                    result = result.filter((t) =>
+                        t.name.toLowerCase().includes(f),
+                    );
+                }
+
+                if (this.sortBy === "name") {
+                    result.sort((a, b) => a.name.localeCompare(b.name));
+                } else if (this.sortBy === "count") {
+                    result.sort((a, b) => a.document_count - b.document_count);
+                } else if (this.sortBy === "count-desc") {
+                    result.sort((a, b) => b.document_count - a.document_count);
+                }
+
+                return result;
+            },
+
+            get filteredCorrespondents() {
+                let result = this.correspondents;
+
+                if (this.correspondentFilter) {
+                    const f = this.correspondentFilter.toLowerCase();
+                    result = result.filter((c) =>
+                        c.name.toLowerCase().includes(f),
+                    );
+                }
+
+                if (this.correspondentSortBy === "name") {
+                    result.sort((a, b) => a.name.localeCompare(b.name));
+                } else if (this.correspondentSortBy === "count") {
+                    result.sort((a, b) => a.document_count - b.document_count);
+                } else if (this.correspondentSortBy === "count-desc") {
+                    result.sort((a, b) => b.document_count - a.document_count);
+                }
+
+                return result;
+            },
+
+            // Methods
+            async loadTags(page = null) {
+                this.loading = true;
+                if (page !== null) {
+                    this.currentPage = page;
+                }
+                try {
+                    const resp = await fetch(
+                        `/api/tags?page=${this.currentPage}&page_size=${this.pageSize}`,
+                    );
+                    const data = await resp.json();
+                    this.tags = data.tags;
+                    this.totalPages = data.total_pages;
+                    this.totalTags = data.total;
+                } catch (e) {
+                    showToast("Failed to load tags: " + e.message, "error");
+                }
+                this.loading = false;
+            },
+
+            nextPage() {
+                if (this.currentPage < this.totalPages) {
+                    this.loadTags(this.currentPage + 1);
+                }
+            },
+
+            prevPage() {
+                if (this.currentPage > 1) {
+                    this.loadTags(this.currentPage - 1);
+                }
+            },
+
+            goToPage(page) {
+                if (page >= 1 && page <= this.totalPages) {
+                    this.loadTags(page);
+                }
+            },
+
+            async loadLowUsage(page = null) {
+                this.loading = true;
+                this.selectedTags = [];
+                if (page !== null) {
+                    this.lowUsageCurrentPage = page;
+                }
+                try {
+                    const resp = await fetch(
+                        `/api/tags/low-usage?max_docs=${this.maxDocs}&page=${this.lowUsageCurrentPage}&page_size=${this.lowUsagePageSize}`,
+                    );
+                    const data = await resp.json();
+                    this.lowUsageTags = data.tags;
+                    this.lowUsageTotalPages = data.total_pages;
+                    this.lowUsageTotalTags = data.total;
+                } catch (e) {
+                    showToast("Failed to load tags: " + e.message, "error");
+                }
+                this.loading = false;
+            },
+
+            nextLowUsagePage() {
+                if (this.lowUsageCurrentPage < this.lowUsageTotalPages) {
+                    this.loadLowUsage(this.lowUsageCurrentPage + 1);
+                }
+            },
+
+            prevLowUsagePage() {
+                if (this.lowUsageCurrentPage > 1) {
+                    this.loadLowUsage(this.lowUsageCurrentPage - 1);
+                }
+            },
+
+            goToLowUsagePage(page) {
+                if (page >= 1 && page <= this.lowUsageTotalPages) {
+                    this.loadLowUsage(page);
+                }
+            },
+
+            async loadMergeSuggestions() {
+                this.loading = true;
+                try {
+                    // Load all tags if not already loaded (needed for search)
+                    if (this.tags.length === 0) {
+                        await this.loadTags();
+                    }
+
+                    const url = this.mergePrefix
+                        ? `/api/tags/merge-suggestions?prefix=${encodeURIComponent(this.mergePrefix)}`
+                        : "/api/tags/merge-suggestions";
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+
+                    // Add target_name and selected_tags field to each group
+                    for (const [prefix, group] of Object.entries(data.groups)) {
+                        group.target_name = group.suggested_name;
+                        // Initially select all tags in the group
+                        group.selected_tags = group.tags.map((t) => t.id);
+                    }
+
+                    this.mergeGroups = data.groups;
+                } catch (e) {
+                    showToast(
+                        "Failed to load suggestions: " + e.message,
+                        "error",
+                    );
+                }
+                this.loading = false;
+            },
+
+            toggleSelectAll(checked, source) {
+                if (source === "lowUsage") {
+                    this.selectedTags = checked
+                        ? this.lowUsageTags.map((t) => t.id)
+                        : [];
+                } else if (source === "lowUsageCorrespondents") {
+                    this.selectedCorrespondents = checked
+                        ? this.lowUsageCorrespondents.map((c) => c.id)
+                        : [];
+                }
+            },
+
+            deleteSelectedTags() {
+                if (this.selectedTags.length === 0) return;
+
+                this.confirmTitle = "Delete Tags";
+                this.confirmMessage = `Are you sure you want to delete ${this.selectedTags.length} tag(s)? This cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    this.operationTotal = this.selectedTags.length;
+                    this.operationProgress = 0;
+
+                    const tagIds = [...this.selectedTags];
+                    const batchSize = 10;
+                    let successCount = 0;
+                    let failCount = 0;
+
+                    try {
+                        // Process in batches for better progress tracking
+                        for (let i = 0; i < tagIds.length; i += batchSize) {
+                            const batch = tagIds.slice(i, i + batchSize);
+
+                            try {
+                                const resp = await fetch("/api/tags/delete", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        tag_ids: batch,
+                                    }),
+                                });
+
+                                if (!resp.ok) {
+                                    const errorData = await resp
+                                        .json()
+                                        .catch(() => ({
+                                            detail: "Unknown error",
+                                        }));
+                                    failCount += batch.length;
+                                } else {
+                                    const data = await resp.json();
+                                    if (data.success) {
+                                        successCount += batch.length;
+                                    } else {
+                                        failCount += batch.length;
+                                    }
+                                }
+                            } catch (e) {
+                                failCount += batch.length;
+                            }
+
+                            this.operationProgress = Math.min(
+                                i + batchSize,
+                                tagIds.length,
+                            );
+                        }
+
+                        // Show results
+                        if (failCount > 0) {
+                            showToast(
+                                `Deleted ${successCount} tags, ${failCount} failed`,
+                                failCount > successCount ? "error" : "success",
+                            );
+                        } else {
+                            showToast(
+                                `Successfully deleted ${successCount} tags`,
+                                "success",
+                            );
+                        }
+
+                        this.selectedTags = [];
+                        // Only reload the current tab to save time
+                        if (this.activeTab === "cleanup") {
+                            await this.loadLowUsage();
+                        } else {
+                            await this.loadTags();
+                        }
+                    } catch (e) {
+                        showToast(
+                            "Delete operation failed: " + e.message,
+                            "error",
+                        );
+                    } finally {
+                        this.operationInProgress = false;
+                        this.operationProgress = 0;
+                        this.operationTotal = 0;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            searchTagsForGroup(prefix, group) {
+                const query = (group.searchQuery || "").toLowerCase().trim();
+                if (query.length < 2) {
+                    group.searchResults = [];
+                    return;
+                }
+
+                // Search in all tags, exclude tags already in this group
+                const existingIds = new Set(group.tags.map((t) => t.id));
+                group.searchResults = this.tags
+                    .filter(
+                        (t) =>
+                            !existingIds.has(t.id) &&
+                            t.name.toLowerCase().includes(query),
+                    )
+                    .slice(0, 10); // Limit to 10 results
+            },
+
+            addTagToGroup(prefix, group, tag) {
+                // Add tag to the group's tags array
+                if (!group.tags.find((t) => t.id === tag.id)) {
+                    group.tags.push(tag);
+                    // Auto-select the newly added tag
+                    if (!group.selected_tags.includes(tag.id)) {
+                        group.selected_tags.push(tag.id);
+                    }
+                    showToast(`Added "${tag.name}" to merge group`, "success");
+                }
+                // Clear search
+                group.searchQuery = "";
+                group.searchResults = [];
+            },
+
+            bulkMergeGroups() {
+                if (this.selectedGroups.length === 0) {
+                    showToast("Please select at least one group", "error");
+                    return;
+                }
+
+                if (!this.bulkMergeTargetName) {
+                    showToast("Please enter a target tag name", "error");
+                    return;
+                }
+
+                // Collect all tags from selected groups
+                const allTagIds = [];
+                let totalDocs = 0;
+
+                for (const prefix of this.selectedGroups) {
+                    const group = this.mergeGroups[prefix];
+                    if (group && group.selected_tags) {
+                        allTagIds.push(...group.selected_tags);
+                        totalDocs += group.total_documents;
+                    }
+                }
+
+                if (allTagIds.length === 0) {
+                    showToast("No tags selected in the chosen groups", "error");
+                    return;
+                }
+
+                this.confirmTitle = "Bulk Merge Groups";
+                this.confirmMessage = `Merge ${allTagIds.length} tag(s) from ${this.selectedGroups.length} group(s) into "${this.bulkMergeTargetName}"?`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/tags/merge", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids: allTagIds,
+                                target_name: this.bulkMergeTargetName,
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Merge failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            this.selectedGroups = [];
+                            this.bulkMergeTargetName = "";
+                            await this.loadMergeSuggestions();
+                        } else {
+                            showToast("Merge failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Merge failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            mergeTags(prefix, group) {
+                const sourceIds =
+                    group.selected_tags || group.tags.map((t) => t.id);
+                const targetName = group.target_name || group.suggested_name;
+
+                if (sourceIds.length === 0) {
+                    showToast(
+                        "Please select at least one tag to merge",
+                        "error",
+                    );
+                    return;
+                }
+
+                this.confirmTitle = "Merge Tags";
+                this.confirmMessage = `Merge ${sourceIds.length} selected tag(s) into "${targetName}"?`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/tags/merge", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids: sourceIds,
+                                target_name: targetName,
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Merge failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            // Only reload merge suggestions, All Tags will update when user switches tabs
+                            await this.loadMergeSuggestions();
+                        } else {
+                            showToast("Merge failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Merge failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            // Edit Methods
+
+            editTag(tag) {
+                this.editType = "tag";
+                this.editId = tag.id;
+                this.editModalTitle = `Edit Tag: ${tag.name}`;
+                this.editForm = {
+                    name: tag.name,
+                    color: tag.color || "#a6cee3",
+                };
+                this.showEditModal = true;
+            },
+
+            editCorrespondent(correspondent) {
+                this.editType = "correspondent";
+                this.editId = correspondent.id;
+                this.editModalTitle = `Edit Correspondent: ${correspondent.name}`;
+                this.editForm = {
+                    name: correspondent.name,
+                    color: "",
+                };
+                this.showEditModal = true;
+            },
+
+            async saveEdit() {
+                if (!this.editForm.name) {
+                    showToast("Name is required", "error");
+                    return;
+                }
+
+                this.operationInProgress = true;
+                try {
+                    const endpoint =
+                        this.editType === "tag"
+                            ? `/api/tags/${this.editId}`
+                            : `/api/correspondents/${this.editId}`;
+
+                    const payload = { name: this.editForm.name };
+                    if (this.editType === "tag" && this.editForm.color) {
+                        payload.color = this.editForm.color;
+                    }
+
+                    const resp = await fetch(endpoint, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (!resp.ok) {
+                        const errorData = await resp
+                            .json()
+                            .catch(() => ({ detail: "Unknown error" }));
+                        showToast(
+                            `Update failed: ${errorData.detail || resp.statusText}`,
+                            "error",
+                        );
+                        return;
+                    }
+
+                    const data = await resp.json();
+                    if (data.success) {
+                        showToast(data.message, "success");
+                        this.showEditModal = false;
+
+                        // Reload the appropriate list
+                        if (this.editType === "tag") {
+                            await this.loadTags();
+                        } else {
+                            await this.loadCorrespondents();
+                        }
+                    } else {
+                        showToast("Update failed", "error");
+                    }
+                } catch (e) {
+                    showToast("Update failed: " + e.message, "error");
+                } finally {
+                    this.operationInProgress = false;
+                }
+            },
+
+            deleteIndividualTag(tag) {
+                this.confirmTitle = "Delete Tag";
+                this.confirmMessage = `Are you sure you want to delete "${tag.name}"? This cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/tags/delete", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ tag_ids: [tag.id] }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Delete failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            await this.loadTags();
+                        } else {
+                            showToast("Delete failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Delete failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            deleteIndividualCorrespondent(correspondent) {
+                this.confirmTitle = "Delete Correspondent";
+                this.confirmMessage = `Are you sure you want to delete "${correspondent.name}"? This cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/correspondents/delete", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                correspondent_ids: [correspondent.id],
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Delete failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            await this.loadCorrespondents();
+                        } else {
+                            showToast("Delete failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Delete failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            // Custom Merge Methods
+
+            searchTagsForCustomMerge() {
+                const query = (this.customMergeSearch || "")
+                    .toLowerCase()
+                    .trim();
+                if (query.length < 2) {
+                    this.customMergeSearchResults = [];
+                    return;
+                }
+
+                this.customMergeSearchResults = this.tags
+                    .filter((t) => t.name.toLowerCase().includes(query))
+                    .slice(0, 20); // Limit to 20 results
+            },
+
+            searchCorrespondentsForCustomMerge() {
+                const query = (this.customCorrespondentMergeSearch || "")
+                    .toLowerCase()
+                    .trim();
+                if (query.length < 2) {
+                    this.customCorrespondentMergeSearchResults = [];
+                    return;
+                }
+
+                this.customCorrespondentMergeSearchResults = this.correspondents
+                    .filter((c) => c.name.toLowerCase().includes(query))
+                    .slice(0, 20); // Limit to 20 results
+            },
+
+            performCustomMerge() {
+                if (this.customMergeSelectedTags.length < 2) {
+                    showToast(
+                        "Please select at least 2 tags to merge",
+                        "error",
+                    );
+                    return;
+                }
+
+                if (!this.customMergeTargetName) {
+                    showToast("Please enter a target tag name", "error");
+                    return;
+                }
+
+                const selectedTagNames = this.customMergeSelectedTags
+                    .map((id) => this.tags.find((t) => t.id === id)?.name)
+                    .filter(Boolean)
+                    .join(", ");
+
+                this.confirmTitle = "Custom Merge Tags";
+                this.confirmMessage = `Merge ${this.customMergeSelectedTags.length} tags (${selectedTagNames}) into "${this.customMergeTargetName}"?`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/tags/merge", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids: this.customMergeSelectedTags,
+                                target_name: this.customMergeTargetName,
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Merge failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            // Reset custom merge state
+                            this.customMergeSelectedTags = [];
+                            this.customMergeTargetName = "";
+                            this.customMergeSearch = "";
+                            this.customMergeSearchResults = [];
+                            // Reload tags
+                            await this.loadTags();
+                        } else {
+                            showToast("Merge failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Merge failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            performCustomCorrespondentMerge() {
+                if (this.customMergeSelectedCorrespondents.length < 2) {
+                    showToast(
+                        "Please select at least 2 correspondents to merge",
+                        "error",
+                    );
+                    return;
+                }
+
+                if (!this.customMergeCorrespondentTargetName) {
+                    showToast(
+                        "Please enter a target correspondent name",
+                        "error",
+                    );
+                    return;
+                }
+
+                const selectedCorrespondentNames =
+                    this.customMergeSelectedCorrespondents
+                        .map(
+                            (id) =>
+                                this.correspondents.find((c) => c.id === id)
+                                    ?.name,
+                        )
+                        .filter(Boolean)
+                        .join(", ");
+
+                this.confirmTitle = "Custom Merge Correspondents";
+                this.confirmMessage = `Merge ${this.customMergeSelectedCorrespondents.length} correspondents (${selectedCorrespondentNames}) into "${this.customMergeCorrespondentTargetName}"?`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/correspondents/merge", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids:
+                                    this.customMergeSelectedCorrespondents,
+                                target_name:
+                                    this.customMergeCorrespondentTargetName,
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Merge failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            // Reset custom merge state
+                            this.customMergeSelectedCorrespondents = [];
+                            this.customMergeCorrespondentTargetName = "";
+                            this.customCorrespondentMergeSearch = "";
+                            this.customCorrespondentMergeSearchResults = [];
+                            // Reload correspondents
+                            await this.loadCorrespondents();
+                        } else {
+                            showToast("Merge failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Merge failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            // Correspondent Methods
+
+            async loadCorrespondents(page = null) {
+                this.loading = true;
+                if (page !== null) {
+                    this.correspondentCurrentPage = page;
+                }
+                try {
+                    const resp = await fetch(
+                        `/api/correspondents?page=${this.correspondentCurrentPage}&page_size=${this.correspondentPageSize}`,
+                    );
+                    const data = await resp.json();
+                    this.correspondents = data.correspondents;
+                    this.correspondentTotalPages = data.total_pages;
+                    this.totalCorrespondents = data.total;
+                } catch (e) {
+                    showToast(
+                        "Failed to load correspondents: " + e.message,
+                        "error",
+                    );
+                }
+                this.loading = false;
+            },
+
+            nextCorrespondentPage() {
+                if (
+                    this.correspondentCurrentPage < this.correspondentTotalPages
+                ) {
+                    this.loadCorrespondents(this.correspondentCurrentPage + 1);
+                }
+            },
+
+            prevCorrespondentPage() {
+                if (this.correspondentCurrentPage > 1) {
+                    this.loadCorrespondents(this.correspondentCurrentPage - 1);
+                }
+            },
+
+            goToCorrespondentPage(page) {
+                if (page >= 1 && page <= this.correspondentTotalPages) {
+                    this.loadCorrespondents(page);
+                }
+            },
+
+            async loadLowUsageCorrespondents(page = null) {
+                this.loading = true;
+                this.selectedCorrespondents = [];
+                if (page !== null) {
+                    this.correspondentCleanupCurrentPage = page;
+                }
+                try {
+                    const resp = await fetch(
+                        `/api/correspondents/low-usage?max_docs=${this.correspondentMaxDocs}&page=${this.correspondentCleanupCurrentPage}&page_size=${this.correspondentCleanupPageSize}`,
+                    );
+                    const data = await resp.json();
+                    this.lowUsageCorrespondents = data.correspondents;
+                    this.correspondentCleanupTotalPages = data.total_pages;
+                    this.lowUsageCorrespondentsTotalTags = data.total;
+                } catch (e) {
+                    showToast(
+                        "Failed to load correspondents: " + e.message,
+                        "error",
+                    );
+                }
+                this.loading = false;
+            },
+
+            nextCorrespondentCleanupPage() {
+                if (
+                    this.correspondentCleanupCurrentPage <
+                    this.correspondentCleanupTotalPages
+                ) {
+                    this.loadLowUsageCorrespondents(
+                        this.correspondentCleanupCurrentPage + 1,
+                    );
+                }
+            },
+
+            prevCorrespondentCleanupPage() {
+                if (this.correspondentCleanupCurrentPage > 1) {
+                    this.loadLowUsageCorrespondents(
+                        this.correspondentCleanupCurrentPage - 1,
+                    );
+                }
+            },
+
+            goToCorrespondentCleanupPage(page) {
+                if (page >= 1 && page <= this.correspondentCleanupTotalPages) {
+                    this.loadLowUsageCorrespondents(page);
+                }
+            },
+
+            deleteSelectedCorrespondents() {
+                if (this.selectedCorrespondents.length === 0) return;
+
+                this.confirmTitle = "Delete Correspondents";
+                this.confirmMessage = `Are you sure you want to delete ${this.selectedCorrespondents.length} correspondent(s)? This cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    this.operationTotal = this.selectedCorrespondents.length;
+                    this.operationProgress = 0;
+
+                    const correspondentIds = [...this.selectedCorrespondents];
+                    const batchSize = 10;
+                    let successCount = 0;
+                    let failCount = 0;
+
+                    try {
+                        // Process in batches for better progress tracking
+                        for (
+                            let i = 0;
+                            i < correspondentIds.length;
+                            i += batchSize
+                        ) {
+                            const batch = correspondentIds.slice(
+                                i,
+                                i + batchSize,
+                            );
+
+                            try {
+                                const resp = await fetch(
+                                    "/api/correspondents/delete",
+                                    {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                            correspondent_ids: batch,
+                                        }),
+                                    },
+                                );
+
+                                if (!resp.ok) {
+                                    const errorData = await resp
+                                        .json()
+                                        .catch(() => ({
+                                            detail: "Unknown error",
+                                        }));
+                                    failCount += batch.length;
+                                } else {
+                                    const data = await resp.json();
+                                    if (data.success) {
+                                        successCount += batch.length;
+                                    } else {
+                                        failCount += batch.length;
+                                    }
+                                }
+                            } catch (e) {
+                                failCount += batch.length;
+                            }
+
+                            this.operationProgress = Math.min(
+                                i + batchSize,
+                                correspondentIds.length,
+                            );
+                        }
+
+                        // Show results
+                        if (failCount > 0) {
+                            showToast(
+                                `Deleted ${successCount} correspondents, ${failCount} failed`,
+                                failCount > successCount ? "error" : "success",
+                            );
+                        } else {
+                            showToast(
+                                `Successfully deleted ${successCount} correspondents`,
+                                "success",
+                            );
+                        }
+
+                        this.selectedCorrespondents = [];
+                        // Only reload the current tab to save time
+                        if (this.activeTab === "correspondent-cleanup") {
+                            await this.loadLowUsageCorrespondents();
+                        } else {
+                            await this.loadCorrespondents();
+                        }
+                    } catch (e) {
+                        showToast(
+                            "Delete operation failed: " + e.message,
+                            "error",
+                        );
+                    } finally {
+                        this.operationInProgress = false;
+                        this.operationProgress = 0;
+                        this.operationTotal = 0;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            async loadCorrespondentMergeSuggestions() {
+                this.loading = true;
+                try {
+                    // Load all correspondents if not already loaded (needed for search)
+                    if (this.correspondents.length === 0) {
+                        await this.loadCorrespondents();
+                    }
+
+                    const url = this.correspondentMergePrefix
+                        ? `/api/correspondents/merge-suggestions?prefix=${encodeURIComponent(this.correspondentMergePrefix)}`
+                        : "/api/correspondents/merge-suggestions";
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+
+                    // Add target_name and selected_correspondents field to each group
+                    for (const [prefix, group] of Object.entries(data.groups)) {
+                        group.target_name = group.suggested_name;
+                        // Initially select all correspondents in the group
+                        group.selected_correspondents =
+                            group.correspondents.map((c) => c.id);
+                    }
+
+                    this.correspondentMergeGroups = data.groups;
+                } catch (e) {
+                    showToast(
+                        "Failed to load suggestions: " + e.message,
+                        "error",
+                    );
+                }
+                this.loading = false;
+            },
+
+            mergeCorrespondents(prefix, group) {
+                const sourceIds =
+                    group.selected_correspondents ||
+                    group.correspondents.map((c) => c.id);
+                const targetName = group.target_name || group.suggested_name;
+
+                if (sourceIds.length === 0) {
+                    showToast(
+                        "Please select at least one correspondent to merge",
+                        "error",
+                    );
+                    return;
+                }
+
+                this.confirmTitle = "Merge Correspondents";
+                this.confirmMessage = `Merge ${sourceIds.length} selected correspondent(s) into "${targetName}"?`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/correspondents/merge", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids: sourceIds,
+                                target_name: targetName,
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Merge failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            // Only reload merge suggestions, All Correspondents will update when user switches tabs
+                            await this.loadCorrespondentMergeSuggestions();
+                        } else {
+                            showToast("Merge failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Merge failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            searchCorrespondentsForGroup(prefix, group) {
+                const query = (group.searchQuery || "").toLowerCase().trim();
+                if (query.length < 2) {
+                    group.searchResults = [];
+                    return;
+                }
+
+                // Search in all correspondents, exclude correspondents already in this group
+                const existingIds = new Set(
+                    group.correspondents.map((c) => c.id),
+                );
+                group.searchResults = this.correspondents
+                    .filter(
+                        (c) =>
+                            !existingIds.has(c.id) &&
+                            c.name.toLowerCase().includes(query),
+                    )
+                    .slice(0, 10); // Limit to 10 results
+            },
+
+            addCorrespondentToGroup(prefix, group, correspondent) {
+                // Add correspondent to the group's correspondents array
+                if (
+                    !group.correspondents.find((c) => c.id === correspondent.id)
+                ) {
+                    group.correspondents.push(correspondent);
+                    // Auto-select the newly added correspondent
+                    if (
+                        !group.selected_correspondents.includes(
+                            correspondent.id,
+                        )
+                    ) {
+                        group.selected_correspondents.push(correspondent.id);
+                    }
+                    showToast(
+                        `Added "${correspondent.name}" to merge group`,
+                        "success",
+                    );
+                }
+                // Clear search
+                group.searchQuery = "";
+                group.searchResults = [];
+            },
+
+            bulkMergeCorrespondentGroups() {
+                if (this.selectedCorrespondentGroups.length === 0) {
+                    showToast("Please select at least one group", "error");
+                    return;
+                }
+
+                if (!this.bulkMergeCorrespondentTargetName) {
+                    showToast(
+                        "Please enter a target correspondent name",
+                        "error",
+                    );
+                    return;
+                }
+
+                // Collect all correspondents from selected groups
+                const allCorrespondentIds = [];
+                let totalDocs = 0;
+
+                for (const prefix of this.selectedCorrespondentGroups) {
+                    const group = this.correspondentMergeGroups[prefix];
+                    if (group && group.selected_correspondents) {
+                        allCorrespondentIds.push(
+                            ...group.selected_correspondents,
+                        );
+                        totalDocs += group.total_documents;
+                    }
+                }
+
+                if (allCorrespondentIds.length === 0) {
+                    showToast(
+                        "No correspondents selected in the chosen groups",
+                        "error",
+                    );
+                    return;
+                }
+
+                this.confirmTitle = "Bulk Merge Groups";
+                this.confirmMessage = `Merge ${allCorrespondentIds.length} correspondent(s) from ${this.selectedCorrespondentGroups.length} group(s) into "${this.bulkMergeCorrespondentTargetName}"?`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/correspondents/merge", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids: allCorrespondentIds,
+                                target_name:
+                                    this.bulkMergeCorrespondentTargetName,
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Merge failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            this.selectedCorrespondentGroups = [];
+                            this.bulkMergeCorrespondentTargetName = "";
+                            await this.loadCorrespondentMergeSuggestions();
+                        } else {
+                            showToast("Merge failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Merge failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+        };
+    }
+</script>
+{% endblock %}

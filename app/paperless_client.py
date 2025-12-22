@@ -530,6 +530,212 @@ class PaperlessClient:
         )
         resp.raise_for_status()
 
+    async def get_all_document_types(self) -> list[DocumentType]:
+        """Fetch all document types with document counts."""
+        document_types = []
+        url = "/api/document_types/?page_size=100"
+
+        while url:
+            resp = await self.client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+            for dt in data.get("results", []):
+                document_types.append(
+                    DocumentType(
+                        id=dt["id"],
+                        name=dt["name"],
+                        slug=dt.get("slug", ""),
+                        matching_algorithm=dt.get("matching_algorithm", 0),
+                        match=dt.get("match", ""),
+                        is_insensitive=dt.get("is_insensitive", True),
+                        document_count=dt.get("document_count", 0),
+                    )
+                )
+
+            next_url = data.get("next")
+            if next_url:
+                if next_url.startswith("http"):
+                    url = next_url.replace(self.base_url, "")
+                else:
+                    url = next_url
+            else:
+                url = None
+
+        return document_types
+
+    async def get_documents_with_document_type(self, document_type_id: int) -> list[Document]:
+        """Get all documents that have a specific document type."""
+        docs = []
+        url = f"/api/documents/?document_type__id={document_type_id}&page_size=100"
+
+        while url:
+            resp = await self.client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+            for d in data.get("results", []):
+                docs.append(Document(id=d["id"], title=d.get("title", "")))
+
+            next_url = data.get("next")
+            if next_url:
+                if next_url.startswith("http"):
+                    url = next_url.replace(self.base_url, "")
+                else:
+                    url = next_url
+            else:
+                url = None
+
+        return docs
+
+    async def delete_document_type(self, document_type_id: int) -> None:
+        """Delete a single document type."""
+        resp = await self.client.delete(f"/api/document_types/{document_type_id}/")
+        resp.raise_for_status()
+
+    async def bulk_delete_document_types(self, document_type_ids: list[int]) -> None:
+        """Delete multiple document types at once."""
+        if not document_type_ids:
+            return
+
+        try:
+            resp = await self.client.post(
+                "/api/bulk_edit_objects/",
+                json={
+                    "objects": document_type_ids,
+                    "object_type": "document_types",
+                    "operation": "delete",
+                },
+            )
+            resp.raise_for_status()
+            return
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                batch_size = 10
+                for i in range(0, len(document_type_ids), batch_size):
+                    batch = document_type_ids[i : i + batch_size]
+                    for document_type_id in batch:
+                        try:
+                            await self.delete_document_type(document_type_id)
+                        except Exception as delete_error:
+                            print(
+                                f"Failed to delete document type {document_type_id}: {delete_error}"
+                            )
+                return
+
+            try:
+                error_detail = e.response.json()
+            except Exception:
+                error_detail = e.response.text
+            raise Exception(
+                f"Paperless API error (status {e.response.status_code}): {error_detail}"
+            )
+        except httpx.TimeoutException:
+            raise Exception(
+                f"Operation timed out while deleting {len(document_type_ids)} document types. "
+                "The document types may still be deleted - please refresh to verify."
+            )
+        except Exception as e:
+            if "bulk_delete_document_types" not in str(e):
+                raise Exception(f"Failed to delete document types: {str(e)}")
+            raise
+
+    async def create_document_type(self, name: str, **kwargs) -> DocumentType:
+        """Create a new document type."""
+        data = {"name": name, **kwargs}
+        resp = await self.client.post("/api/document_types/", json=data)
+        resp.raise_for_status()
+        dt = resp.json()
+        return DocumentType(
+            id=dt["id"],
+            name=dt["name"],
+            slug=dt.get("slug", ""),
+            matching_algorithm=dt.get("matching_algorithm", 0),
+            match=dt.get("match", ""),
+            is_insensitive=dt.get("is_insensitive", True),
+            document_count=dt.get("document_count", 0),
+        )
+
+    async def update_document_type(self, document_type_id: int, **kwargs) -> DocumentType:
+        """Update an existing document type."""
+        resp = await self.client.patch(f"/api/document_types/{document_type_id}/", json=kwargs)
+        resp.raise_for_status()
+        dt = resp.json()
+        return DocumentType(
+            id=dt["id"],
+            name=dt["name"],
+            slug=dt.get("slug", ""),
+            matching_algorithm=dt.get("matching_algorithm", 0),
+            match=dt.get("match", ""),
+            is_insensitive=dt.get("is_insensitive", True),
+            document_count=dt.get("document_count", 0),
+        )
+
+    async def get_document_type_by_name(self, name: str) -> DocumentType | None:
+        """Find a document type by exact name (case-insensitive)."""
+        resp = await self.client.get(f"/api/document_types/?name__iexact={name}")
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if results:
+            dt = results[0]
+            return DocumentType(
+                id=dt["id"],
+                name=dt["name"],
+                slug=dt.get("slug", ""),
+                matching_algorithm=dt.get("matching_algorithm", 0),
+                match=dt.get("match", ""),
+                is_insensitive=dt.get("is_insensitive", True),
+                document_count=dt.get("document_count", 0),
+            )
+        return None
+
+    async def set_document_type_on_documents(
+        self, doc_ids: list[int], document_type_id: int
+    ) -> None:
+        """Set a document type on multiple documents."""
+        if not doc_ids:
+            return
+
+        resp = await self.client.post(
+            "/api/documents/bulk_edit/",
+            json={
+                "documents": doc_ids,
+                "method": "set_document_type",
+                "parameters": {"document_type": document_type_id},
+            },
+        )
+        resp.raise_for_status()
+
+    async def get_all_custom_fields(self) -> list[CustomField]:
+        """Fetch all custom fields."""
+        custom_fields = []
+        url = "/api/custom_fields/?page_size=100"
+
+        while url:
+            resp = await self.client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+            for cf in data.get("results", []):
+                custom_fields.append(
+                    CustomField(
+                        id=cf["id"],
+                        name=cf["name"],
+                        data_type=cf.get("data_type", "text"),
+                    )
+                )
+
+            next_url = data.get("next")
+            if next_url:
+                if next_url.startswith("http"):
+                    url = next_url.replace(self.base_url, "")
+                else:
+                    url = next_url
+            else:
+                url = None
+
+        return custom_fields
+
 
 def find_low_usage_correspondents(
     correspondents: list[Correspondent],
@@ -652,6 +858,69 @@ def group_correspondents_by_prefix(
     # Filter to groups with multiple correspondents
     return {
         k: sorted(v, key=lambda c: (-c.document_count, c.name.lower()))
+        for k, v in groups.items()
+        if len(v) > 1
+    }
+
+
+def find_low_usage_document_types(
+    document_types: list[DocumentType],
+    max_docs: int = 0,
+    exclude_patterns: list[str] | None = None,
+) -> list[DocumentType]:
+    """Find document types with document count <= max_docs, excluding specified patterns."""
+    exclude_patterns = exclude_patterns or []
+    low_usage = []
+
+    for document_type in document_types:
+        if document_type.document_count > max_docs:
+            continue
+
+        excluded = False
+        for pattern in exclude_patterns:
+            if re.search(pattern, document_type.name, re.IGNORECASE):
+                excluded = True
+                break
+
+        if document_type.is_auto:
+            excluded = True
+
+        if not excluded:
+            low_usage.append(document_type)
+
+    return low_usage
+
+
+def group_document_types_by_prefix(
+    document_types: list[DocumentType], min_prefix_length: int = 3
+) -> dict[str, list[DocumentType]]:
+    """Group document types by common prefixes for merge suggestions."""
+    from collections import defaultdict
+
+    groups: dict[str, list[DocumentType]] = defaultdict(list)
+
+    for document_type in document_types:
+        name_lower = document_type.name.lower()
+
+        # Try to find the best prefix
+        # First, split by common separators
+        parts = re.split(r"[\s_\-]+", name_lower)
+        if len(parts) > 1:
+            prefix = parts[0]
+        else:
+            # Use first N characters as prefix
+            prefix = (
+                name_lower[:min_prefix_length]
+                if len(name_lower) >= min_prefix_length
+                else name_lower
+            )
+
+        if len(prefix) >= min_prefix_length:
+            groups[prefix].append(document_type)
+
+    # Filter to groups with multiple document types
+    return {
+        k: sorted(v, key=lambda dt: (-dt.document_count, dt.name.lower()))
         for k, v in groups.items()
         if len(v) > 1
     }
