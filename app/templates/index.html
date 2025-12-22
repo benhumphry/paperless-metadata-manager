@@ -1275,7 +1275,7 @@
                 return item ? item.name : `ID: ${id}`;
             },
 
-            async performCustomMerge() {
+            performCustomMerge() {
                 if (
                     this.customMergeSelectedItems.length < 2 ||
                     !this.customMergeTargetName
@@ -1287,35 +1287,43 @@
                     return;
                 }
 
-                this.operationInProgress = true;
-                try {
-                    const resp = await fetch(`${this.apiEndpoint}/merge`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            source_ids: this.customMergeSelectedItems,
-                            target_name: this.customMergeTargetName,
-                        }),
-                    });
+                const itemCount = this.customMergeSelectedItems.length;
+                const targetName = this.customMergeTargetName;
 
-                    if (!resp.ok) {
-                        const err = await resp.json();
-                        throw new Error(err.detail || "Merge failed");
+                this.confirmTitle = `Merge ${itemCount} items?`;
+                this.confirmMessage = `This will merge ${itemCount} items into "${targetName}". This action cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch(`${this.apiEndpoint}/merge`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids: this.customMergeSelectedItems,
+                                target_name: this.customMergeTargetName,
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const err = await resp.json();
+                            throw new Error(err.detail || "Merge failed");
+                        }
+
+                        const result = await resp.json();
+                        showToast(result.message, "success");
+
+                        this.customMergeSelectedItems = [];
+                        this.customMergeTargetName = "";
+                        this.customMergeSearch = "";
+                        this.customMergeSearchResults = [];
+                        this.loadData();
+                        this.loadMergeSuggestions();
+                    } catch (e) {
+                        showToast("Failed to merge: " + e.message, "error");
                     }
-
-                    const result = await resp.json();
-                    showToast(result.message, "success");
-
-                    this.customMergeSelectedItems = [];
-                    this.customMergeTargetName = "";
-                    this.customMergeSearch = "";
-                    this.customMergeSearchResults = [];
-                    this.loadData();
-                    this.loadMergeSuggestions();
-                } catch (e) {
-                    showToast("Failed to merge: " + e.message, "error");
-                }
-                this.operationInProgress = false;
+                    this.operationInProgress = false;
+                };
+                this.showConfirm = true;
             },
 
             toggleItemInGroup(group, itemId) {
@@ -1330,7 +1338,7 @@
                 }
             },
 
-            async mergeGroup(prefix, group) {
+            mergeGroup(prefix, group) {
                 const targetName =
                     group.target_name || group.suggested_name || prefix;
                 const sourceIds =
@@ -1342,67 +1350,11 @@
                     return;
                 }
 
-                this.operationInProgress = true;
-                try {
-                    const resp = await fetch(`${this.apiEndpoint}/merge`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            source_ids: sourceIds,
-                            target_name: targetName,
-                        }),
-                    });
-
-                    if (!resp.ok) {
-                        const err = await resp.json();
-                        throw new Error(err.detail || "Merge failed");
-                    }
-
-                    const result = await resp.json();
-                    showToast(result.message, "success");
-
-                    delete this.mergeGroups[prefix];
-                    this.loadData();
-                } catch (e) {
-                    showToast("Failed to merge: " + e.message, "error");
-                }
-                this.operationInProgress = false;
-            },
-
-            async bulkMergeGroups() {
-                if (this.selectedGroups.length === 0) return;
-
-                this.operationInProgress = true;
-                this.operationProgress = 0;
-                this.operationTotal = this.selectedGroups.length;
-
-                try {
-                    for (const prefix of this.selectedGroups) {
-                        const group = this.mergeGroups[prefix];
-                        if (!group) {
-                            console.warn(
-                                `Skipping group "${prefix}" - not found`,
-                            );
-                            this.operationProgress++;
-                            continue;
-                        }
-                        const targetName =
-                            this.bulkMergeTargetName ||
-                            group.target_name ||
-                            group.suggested_name ||
-                            prefix;
-                        const sourceIds =
-                            group.selected_items ||
-                            group[this.itemKey].map((item) => item.id);
-
-                        if (sourceIds.length < 2) {
-                            console.warn(
-                                `Skipping group "${prefix}" - less than 2 items selected`,
-                            );
-                            this.operationProgress++;
-                            continue;
-                        }
-
+                this.confirmTitle = `Merge ${sourceIds.length} items?`;
+                this.confirmMessage = `This will merge ${sourceIds.length} items into "${targetName}". This action cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
                         const resp = await fetch(`${this.apiEndpoint}/merge`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -1414,26 +1366,108 @@
 
                         if (!resp.ok) {
                             const err = await resp.json();
-                            throw new Error(
-                                `Failed to merge "${prefix}": ${err.detail || "Unknown error"}`,
-                            );
+                            throw new Error(err.detail || "Merge failed");
                         }
 
-                        delete this.mergeGroups[prefix];
-                        this.operationProgress++;
-                    }
+                        const result = await resp.json();
+                        showToast(result.message, "success");
 
-                    showToast(
-                        `Merged ${this.selectedGroups.length} groups`,
-                        "success",
-                    );
-                    this.selectedGroups = [];
-                    this.bulkMergeTargetName = "";
-                    this.loadData();
-                } catch (e) {
-                    showToast("Merge error: " + e.message, "error");
+                        delete this.mergeGroups[prefix];
+                        this.loadData();
+                    } catch (e) {
+                        showToast("Failed to merge: " + e.message, "error");
+                    }
+                    this.operationInProgress = false;
+                };
+                this.showConfirm = true;
+            },
+
+            bulkMergeGroups() {
+                if (this.selectedGroups.length === 0) return;
+
+                // Count total items to be merged
+                let totalItems = 0;
+                for (const prefix of this.selectedGroups) {
+                    const group = this.mergeGroups[prefix];
+                    if (group) {
+                        totalItems +=
+                            group.selected_items?.length ||
+                            group[this.itemKey].length;
+                    }
                 }
-                this.operationInProgress = false;
+
+                this.confirmTitle = `Merge ${this.selectedGroups.length} groups?`;
+                this.confirmMessage = `This will merge ${totalItems} items across ${this.selectedGroups.length} groups. This action cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    this.operationProgress = 0;
+                    this.operationTotal = this.selectedGroups.length;
+
+                    try {
+                        for (const prefix of this.selectedGroups) {
+                            const group = this.mergeGroups[prefix];
+                            if (!group) {
+                                console.warn(
+                                    `Skipping group "${prefix}" - not found`,
+                                );
+                                this.operationProgress++;
+                                continue;
+                            }
+                            const targetName =
+                                this.bulkMergeTargetName ||
+                                group.target_name ||
+                                group.suggested_name ||
+                                prefix;
+                            const sourceIds =
+                                group.selected_items ||
+                                group[this.itemKey].map((item) => item.id);
+
+                            if (sourceIds.length < 2) {
+                                console.warn(
+                                    `Skipping group "${prefix}" - less than 2 items selected`,
+                                );
+                                this.operationProgress++;
+                                continue;
+                            }
+
+                            const resp = await fetch(
+                                `${this.apiEndpoint}/merge`,
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        source_ids: sourceIds,
+                                        target_name: targetName,
+                                    }),
+                                },
+                            );
+
+                            if (!resp.ok) {
+                                const err = await resp.json();
+                                throw new Error(
+                                    `Failed to merge "${prefix}": ${err.detail || "Unknown error"}`,
+                                );
+                            }
+
+                            delete this.mergeGroups[prefix];
+                            this.operationProgress++;
+                        }
+
+                        showToast(
+                            `Merged ${this.selectedGroups.length} groups`,
+                            "success",
+                        );
+                        this.selectedGroups = [];
+                        this.bulkMergeTargetName = "";
+                        this.loadData();
+                    } catch (e) {
+                        showToast("Merge error: " + e.message, "error");
+                    }
+                    this.operationInProgress = false;
+                };
+                this.showConfirm = true;
             },
         };
     }
