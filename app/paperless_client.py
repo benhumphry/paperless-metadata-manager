@@ -159,14 +159,18 @@ class PaperlessClient:
         await self.close()
 
     async def test_connection(self) -> PaperlessInfo:
-        """Test connection and get Paperless info."""
-        # Use /api/tags/ instead of /api/ to avoid redirect
-        resp = await self.client.get("/api/tags/?page_size=1")
+        """Test connection and get Paperless info including version."""
+        # Get version from /api/status/ endpoint
+        resp = await self.client.get("/api/status/")
         resp.raise_for_status()
-        # Return basic info since the tags endpoint doesn't provide version
+        data = resp.json()
+
+        version = data.get("pngx_version", "unknown")
+        api_version = data.get("api_version", 1)
+
         return PaperlessInfo(
-            version="connected",
-            api_version=1,
+            version=version,
+            api_version=api_version,
         )
 
     async def get_all_tags(self) -> list[Tag]:
