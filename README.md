@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="app/static/img/logo.png" alt="Paperless Metadata Manager Logo" width="128">
+</p>
+
 # Paperless Metadata Manager
 
 A web-based tool for bulk metadata management in [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx). Clean up unused tags, correspondents, and document types, merge similar items, and maintain a tidy document management system.
