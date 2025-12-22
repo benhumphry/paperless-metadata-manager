@@ -6,9 +6,10 @@
 
 A web-based tool for bulk metadata management in [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx). Clean up unused tags, correspondents, and document types, merge similar items, and maintain a tidy document management system.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
-![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
+[![Docker](https://img.shields.io/ghcr/v/benhumphry/paperless-metadata-manager?label=docker&logo=docker)](https://github.com/benhumphry/paperless-metadata-manager/pkgs/container/paperless-metadata-manager)
+[![GitHub Release](https://img.shields.io/github/v/release/benhumphry/paperless-metadata-manager)](https://github.com/benhumphry/paperless-metadata-manager/releases)
 
 ## Features
 
@@ -33,31 +34,40 @@ Alternatively, create one via CLI:
 docker exec paperless python manage.py generate_api_token <username>
 ```
 
-### 2. Configure
+### 2. Run with Docker
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/paperless-metadata-manager.git
-cd paperless-metadata-manager
-
-# Copy example config and edit
-cp example.env .env
-nano .env
+docker run -d \
+  --name paperless-metadata-manager \
+  -p 8080:8000 \
+  -e PAPERLESS_URL=http://your-paperless-url:8000 \
+  -e PAPERLESS_API_TOKEN=your_api_token_here \
+  --restart unless-stopped \
+  ghcr.io/benhumphry/paperless-metadata-manager:latest
 ```
 
-Set your Paperless-ngx URL and API token in `.env`:
-```bash
-PAPERLESS_URL=http://localhost:8000
-PAPERLESS_API_TOKEN=your_api_token_here
+Access the web UI at **http://localhost:8080**
+
+### Alternative: Docker Compose
+
+Create a `docker-compose.yml`:
+
+```yaml
+services:
+  paperless-metadata-manager:
+    image: ghcr.io/benhumphry/paperless-metadata-manager:latest
+    environment:
+      - PAPERLESS_URL=http://your-paperless-url:8000
+      - PAPERLESS_API_TOKEN=your_api_token_here
+    ports:
+      - "8080:8000"
+    restart: unless-stopped
 ```
 
-### 3. Run
-
+Then run:
 ```bash
 docker compose up -d
 ```
-
-Access the web UI at **http://localhost:8000**
 
 ## Configuration
 
@@ -129,45 +139,43 @@ The merge process:
 
 ## Deployment Options
 
-### Docker Compose (Recommended)
+### Same Network as Paperless-ngx
+
+If Paperless-ngx is running in Docker, connect to the same network for internal communication:
 
 ```yaml
 services:
   paperless-metadata-manager:
-    build: .
-    env_file: .env
+    image: ghcr.io/benhumphry/paperless-metadata-manager:latest
+    environment:
+      - PAPERLESS_URL=http://paperless:8000
+      - PAPERLESS_API_TOKEN=your_api_token_here
     ports:
-      - "8000:8000"
-    restart: unless-stopped
-```
-
-### Same Network as Paperless
-
-If Paperless-ngx is running in Docker, you may want to connect to the same network:
-
-```yaml
-services:
-  paperless-metadata-manager:
-    build: .
-    env_file: .env
-    ports:
-      - "8000:8000"
+      - "8080:8000"
     networks:
       - paperless_default
+    restart: unless-stopped
 
 networks:
   paperless_default:
     external: true
 ```
 
-Then use the container name in your config:
-```bash
-PAPERLESS_URL=http://paperless:8000
-```
+Replace `paperless` with your Paperless-ngx container name.
 
 ### Behind a Reverse Proxy
 
 The app runs on port 8000 by default. Configure your reverse proxy (nginx, Caddy, Traefik, etc.) to proxy to this port. No special headers are required.
+
+### Building from Source
+
+If you prefer to build locally:
+
+```bash
+git clone https://github.com/benhumphry/paperless-metadata-manager.git
+cd paperless-metadata-manager
+docker build -t paperless-metadata-manager .
+```
 
 ## Development
 
