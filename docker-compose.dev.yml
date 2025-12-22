@@ -1,0 +1,15 @@
+# Development docker-compose with hot reload
+services:
+  paperless-tag-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: paperless-tag-manager-dev
+    env_file:
+      - .env
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ./app:/app/app:ro
+    environment:
+      - LOG_LEVEL=debug

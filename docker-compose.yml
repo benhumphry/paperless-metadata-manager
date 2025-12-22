@@ -1,0 +1,19 @@
+services:
+  paperless-tag-manager:
+    build: .
+    container_name: paperless-tag-manager
+    env_file:
+      - .env
+    ports:
+      - "${PORT:-8000}:8000"
+    restart: unless-stopped
+    # Uncomment if Paperless is on the same Docker network:
+    # networks:
+    #   - paperless_default
+    # external_links:
+    #   - paperless:paperless
+
+# Uncomment to connect to existing Paperless network:
+# networks:
+#   paperless_default:
+#     external: true

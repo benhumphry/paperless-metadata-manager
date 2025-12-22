@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Paperless Tag Manager{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+        
+        .htmx-indicator {
+            display: none;
+        }
+    </style>
+    
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold text-gray-900">
+                        📄 Paperless Tag Manager
+                    </h1>
+                    <span class="text-sm text-gray-500">v{{ app_version }}</span>
+                </div>
+                
+                <!-- Connection Status -->
+                <div class="flex items-center space-x-2">
+                    {% if connected %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span class="w-2 h-2 mr-1 bg-green-400 rounded-full"></span>
+                        Connected ({{ version }})
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <span class="w-2 h-2 mr-1 bg-red-400 rounded-full"></span>
+                        Disconnected
+                    </span>
+                    {% endif %}
+                    <a href="{{ paperless_url }}" target="_blank" class="text-sm text-blue-600 hover:text-blue-800">
+                        {{ paperless_url }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        {% if error %}
+        <div class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong class="font-bold">Connection Error:</strong>
+            <span class="block sm:inline">{{ error }}</span>
+        </div>
+        {% endif %}
+        
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+    
+    <script>
+        // Toast notification helper
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const bgColor = type === 'success' ? 'bg-green-500' : 
+                           type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+            
+            toast.className = `${bgColor} text-white px-6 py-3 rounded shadow-lg transform transition-all duration-300`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        // Listen for HTMX events
+        document.body.addEventListener('showToast', function(evt) {
+            showToast(evt.detail.message, evt.detail.type);
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
