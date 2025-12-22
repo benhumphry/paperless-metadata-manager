@@ -658,7 +658,10 @@
         <!-- Merge Groups -->
         <div class="space-y-4">
             <template x-for="(group, prefix) in mergeGroups" :key="prefix">
-                <div class="bg-white shadow rounded-lg p-4">
+                <div
+                    class="bg-white shadow rounded-lg p-4"
+                    x-init="group.selected_items = group.selected_items || group[itemKey].map(i => i.id)"
+                >
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center space-x-3">
                             <input
@@ -672,7 +675,7 @@
                             </h4>
                             <span
                                 class="text-sm text-gray-500"
-                                x-text="`${group[itemKey].length} items, ${group.total_documents} total docs`"
+                                x-text="`${group.selected_items?.length || group[itemKey].length} of ${group[itemKey].length} items selected, ${group.total_documents} total docs`"
                             ></span>
                         </div>
                         <div class="flex items-center space-x-2">
@@ -684,27 +687,39 @@
                             />
                             <button
                                 @click="mergeGroup(prefix, group)"
-                                :disabled="operationInProgress"
-                                :class="operationInProgress ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                                :disabled="operationInProgress || (group.selected_items?.length || 0) < 2"
+                                :class="(operationInProgress || (group.selected_items?.length || 0) < 2) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
                                 class="px-3 py-1.5 bg-purple-600 text-white rounded-md text-sm"
                             >
                                 Merge
                             </button>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-2">
+                    <div class="border rounded-md divide-y">
                         <template x-for="item in group[itemKey]" :key="item.id">
-                            <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                :class="metadataType === 'tags' ? '' : 'bg-gray-100 text-gray-800'"
-                                :style="metadataType === 'tags' ? `background-color: ${item.color}20; color: ${item.color}; border: 1px solid ${item.color}` : ''"
+                            <div
+                                class="px-4 py-2 flex items-center hover:bg-gray-50"
                             >
-                                <span x-text="item.name"></span>
+                                <input
+                                    type="checkbox"
+                                    :value="item.id"
+                                    x-model="group.selected_items"
+                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                />
                                 <span
-                                    class="ml-1 opacity-75"
-                                    x-text="`(${item.document_count})`"
+                                    x-show="metadataType === 'tags'"
+                                    class="ml-3 w-4 h-4 rounded"
+                                    :style="`background-color: ${item.color}`"
                                 ></span>
-                            </span>
+                                <span
+                                    class="ml-3 flex-1 text-sm text-gray-900"
+                                    x-text="item.name"
+                                ></span>
+                                <span
+                                    class="text-sm text-gray-500"
+                                    x-text="item.document_count + ' docs'"
+                                ></span>
+                            </div>
                         </template>
                     </div>
                 </div>
@@ -1297,7 +1312,14 @@
             async mergeGroup(prefix, group) {
                 const targetName =
                     group.target_name || group.suggested_name || prefix;
-                const sourceIds = group[this.itemKey].map((item) => item.id);
+                const sourceIds =
+                    group.selected_items ||
+                    group[this.itemKey].map((item) => item.id);
+
+                if (sourceIds.length < 2) {
+                    showToast("Select at least 2 items to merge", "error");
+                    return;
+                }
 
                 this.operationInProgress = true;
                 try {
@@ -1341,9 +1363,17 @@
                             group.target_name ||
                             group.suggested_name ||
                             prefix;
-                        const sourceIds = group[this.itemKey].map(
-                            (item) => item.id,
-                        );
+                        const sourceIds =
+                            group.selected_items ||
+                            group[this.itemKey].map((item) => item.id);
+
+                        if (sourceIds.length < 2) {
+                            console.warn(
+                                `Skipping group "${prefix}" - less than 2 items selected`,
+                            );
+                            this.operationProgress++;
+                            continue;
+                        }
 
                         const resp = await fetch(`${this.apiEndpoint}/merge`, {
                             method: "POST",
