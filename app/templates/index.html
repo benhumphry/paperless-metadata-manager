@@ -768,7 +768,15 @@
                             showToast("Delete failed", "error");
                         }
                     } catch (e) {
-                        showToast("Delete failed: " + e.message, "error");
+                        // Show error but still refresh the lists in case deletion succeeded
+                        showToast(
+                            "Delete operation completed with errors: " +
+                                e.message,
+                            "error",
+                        );
+                        this.selectedTags = [];
+                        await this.loadLowUsage();
+                        await this.loadTags();
                     } finally {
                         this.operationInProgress = false;
                     }

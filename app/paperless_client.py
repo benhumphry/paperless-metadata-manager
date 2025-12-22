@@ -67,7 +67,7 @@ class PaperlessClient:
                 "Authorization": f"Token {api_token}",
                 "Content-Type": "application/json",
             },
-            timeout=30.0,
+            timeout=120.0,  # Increased timeout for bulk operations
         )
 
     async def close(self):
@@ -192,8 +192,16 @@ class PaperlessClient:
         except httpx.HTTPStatusError as e:
             # If bulk endpoint doesn't exist (404), fall back to individual deletes
             if e.response.status_code == 404:
-                for tag_id in tag_ids:
-                    await self.delete_tag(tag_id)
+                # Delete in batches to avoid overwhelming the API
+                batch_size = 10
+                for i in range(0, len(tag_ids), batch_size):
+                    batch = tag_ids[i : i + batch_size]
+                    for tag_id in batch:
+                        try:
+                            await self.delete_tag(tag_id)
+                        except Exception as delete_error:
+                            # Log but continue with other deletions
+                            print(f"Failed to delete tag {tag_id}: {delete_error}")
                 return
 
             # For other errors, try to get details
@@ -203,6 +211,11 @@ class PaperlessClient:
                 error_detail = e.response.text
             raise Exception(
                 f"Paperless API error (status {e.response.status_code}): {error_detail}"
+            )
+        except httpx.TimeoutException:
+            raise Exception(
+                f"Operation timed out while deleting {len(tag_ids)} tags. "
+                "The tags may still be deleted - please refresh to verify."
             )
         except Exception as e:
             if "bulk_delete_tags" not in str(e):
