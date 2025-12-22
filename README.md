@@ -8,8 +8,8 @@ A web-based tool for bulk metadata management in [Paperless-ngx](https://github.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
-[![Docker](https://img.shields.io/ghcr/v/benhumphry/paperless-metadata-manager?label=docker&logo=docker)](https://github.com/benhumphry/paperless-metadata-manager/pkgs/container/paperless-metadata-manager)
 [![GitHub Release](https://img.shields.io/github/v/release/benhumphry/paperless-metadata-manager)](https://github.com/benhumphry/paperless-metadata-manager/releases)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue?logo=docker)](https://github.com/benhumphry/paperless-metadata-manager/pkgs/container/paperless-metadata-manager)
 
 ## Features
 
