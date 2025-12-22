@@ -1,14 +1,15 @@
 {% extends "base.html" %} {% block content %}
 <div x-data="metadataManager()" x-init="init()">
     <!-- Metadata Type Selector -->
-    <div class="mb-6 bg-white shadow rounded-lg p-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2"
+    <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+        <label
+            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >Metadata Type</label
         >
         <select
             x-model="metadataType"
             @change="onMetadataTypeChange()"
-            class="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+            class="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
         >
             <option value="tags">Tags</option>
             <option value="correspondents">Correspondents</option>
@@ -17,38 +18,38 @@
     </div>
 
     <!-- Tabs -->
-    <div class="mb-6 border-b border-gray-200">
+    <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-8">
             <button
                 @click="activeTab = 'all'; loadData()"
-                :class="activeTab === 'all' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                :class="activeTab === 'all' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
             >
                 All
                 <span
-                    class="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs"
+                    class="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 py-0.5 px-2 rounded-full text-xs"
                     x-text="totalItems"
                 ></span>
             </button>
             <button
                 @click="activeTab = 'cleanup'; if (cleanupItems.length === 0) loadCleanup()"
-                :class="activeTab === 'cleanup' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                :class="activeTab === 'cleanup' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
             >
                 Cleanup
                 <span
-                    class="ml-2 bg-yellow-100 text-yellow-600 py-0.5 px-2 rounded-full text-xs"
+                    class="ml-2 bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-300 py-0.5 px-2 rounded-full text-xs"
                     x-text="totalCleanupItems"
                 ></span>
             </button>
             <button
                 @click="activeTab = 'merge'; if (Object.keys(mergeGroups).length === 0) loadMergeSuggestions()"
-                :class="activeTab === 'merge' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                :class="activeTab === 'merge' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
             >
                 Merge
                 <span
-                    class="ml-2 bg-purple-100 text-purple-600 py-0.5 px-2 rounded-full text-xs"
+                    class="ml-2 bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 py-0.5 px-2 rounded-full text-xs"
                     x-text="Object.keys(mergeGroups).length"
                 ></span>
             </button>
@@ -89,13 +90,13 @@
                     x-model="filter"
                     @input.debounce.300ms="currentPage = 1; loadData()"
                     placeholder="Filter by name..."
-                    class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                 />
 
                 <select
                     x-model.number="pageSize"
                     @change="currentPage = 1; loadData()"
-                    class="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm dark:bg-gray-700 dark:text-white"
                 >
                     <option value="20">20 per page</option>
                     <option value="50">50 per page</option>
@@ -105,13 +106,17 @@
         </div>
 
         <!-- Table -->
-        <div class="bg-white shadow overflow-hidden rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+        <div
+            class="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg"
+        >
+            <table
+                class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"
+            >
+                <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
                         <th
                             @click="sortBy = sortBy === 'name' ? 'name-desc' : 'name'"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                         >
                             Name
                             <span x-show="sortBy === 'name'" class="ml-1"
@@ -123,13 +128,13 @@
                         </th>
                         <th
                             x-show="metadataType === 'tags'"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                         >
                             Color
                         </th>
                         <th
                             @click="sortBy = sortBy === 'count' ? 'count-desc' : 'count'"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                         >
                             Documents
                             <span x-show="sortBy === 'count'" class="ml-1"
@@ -141,7 +146,7 @@
                         </th>
                         <th
                             @click="sortBy = sortBy === 'match' ? 'match-desc' : 'match'"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                         >
                             Match Type
                             <span x-show="sortBy === 'match'" class="ml-1"
@@ -152,18 +157,20 @@
                             >
                         </th>
                         <th
-                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                         >
                             Actions
                         </th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody
+                    class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
+                >
                     <template x-for="item in filteredItems" :key="item.id">
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span
-                                    class="text-sm font-medium text-gray-900"
+                                    class="text-sm font-medium text-gray-900 dark:text-white"
                                     x-text="item.name"
                                 ></span>
                             </td>
@@ -179,12 +186,12 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span
                                     class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                    :class="item.document_count === 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'"
+                                    :class="item.document_count === 0 ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'"
                                     x-text="item.document_count + ' docs'"
                                 ></span>
                             </td>
                             <td
-                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
                                 x-text="item.match_type"
                             ></td>
                             <td
@@ -192,13 +199,13 @@
                             >
                                 <button
                                     @click="editItem(item)"
-                                    class="text-blue-600 hover:text-blue-900 mr-3"
+                                    class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
                                 >
                                     Edit
                                 </button>
                                 <button
                                     @click="deleteIndividualItem(item)"
-                                    class="text-red-600 hover:text-red-900"
+                                    class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
                                 >
                                     Delete
                                 </button>
@@ -214,7 +221,7 @@
             class="mt-4 flex items-center justify-between"
             x-show="totalPages > 1"
         >
-            <div class="text-sm text-gray-700">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
                 Page <span x-text="currentPage"></span> of
                 <span x-text="totalPages"></span>
                 (<span x-text="totalItems"></span> total)
@@ -223,16 +230,16 @@
                 <button
                     @click="loadData(currentPage - 1)"
                     :disabled="currentPage <= 1"
-                    :class="currentPage <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300'"
-                    class="px-3 py-1 bg-gray-200 rounded text-sm"
+                    :class="currentPage <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300 dark:hover:bg-gray-600'"
+                    class="px-3 py-1 bg-gray-200 dark:bg-gray-700 dark:text-white rounded text-sm"
                 >
                     Previous
                 </button>
                 <button
                     @click="loadData(currentPage + 1)"
                     :disabled="currentPage >= totalPages"
-                    :class="currentPage >= totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300'"
-                    class="px-3 py-1 bg-gray-200 rounded text-sm"
+                    :class="currentPage >= totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300 dark:hover:bg-gray-600'"
+                    class="px-3 py-1 bg-gray-200 dark:bg-gray-700 dark:text-white rounded text-sm"
                 >
                     Next
                 </button>
@@ -246,18 +253,22 @@
         <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center space-x-4">
                 <label class="flex items-center space-x-2">
-                    <span class="text-sm text-gray-700">Show items with ≤</span>
+                    <span class="text-sm text-gray-700 dark:text-gray-300"
+                        >Show items with ≤</span
+                    >
                     <select
                         x-model="maxDocs"
                         @change="cleanupCurrentPage = 1; loadCleanup()"
-                        class="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                        class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm dark:bg-gray-700 dark:text-white"
                     >
                         <option value="0">0</option>
                         <option value="1">1</option>
                         <option value="2">2</option>
                         <option value="5">5</option>
                     </select>
-                    <span class="text-sm text-gray-700">documents</span>
+                    <span class="text-sm text-gray-700 dark:text-gray-300"
+                        >documents</span
+                    >
                 </label>
 
                 <label class="flex items-center space-x-2">
@@ -265,16 +276,16 @@
                         type="checkbox"
                         x-model="excludeAuto"
                         @change="cleanupCurrentPage = 1; loadCleanup()"
-                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
                     />
-                    <span class="text-sm text-gray-700"
+                    <span class="text-sm text-gray-700 dark:text-gray-300"
                         >Exclude auto-match</span
                     >
                 </label>
 
                 <span
                     x-show="metadataType === 'tags'"
-                    class="text-sm text-gray-500"
+                    class="text-sm text-gray-500 dark:text-gray-400"
                 >
                     (excluding patterns: {{ exclude_patterns }})
                 </span>
@@ -282,7 +293,7 @@
                 <select
                     x-model.number="cleanupPageSize"
                     @change="cleanupCurrentPage = 1; loadCleanup()"
-                    class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                    class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm dark:bg-gray-700 dark:text-white"
                 >
                     <option value="20">20 per page</option>
                     <option value="50">50 per page</option>
@@ -309,19 +320,19 @@
         <!-- Progress Bar -->
         <div
             x-show="operationInProgress"
-            class="mb-4 bg-white shadow rounded-lg p-4"
+            class="mb-4 bg-white dark:bg-gray-800 shadow rounded-lg p-4"
         >
             <div class="flex items-center justify-between mb-2">
-                <span class="text-sm text-gray-600"
+                <span class="text-sm text-gray-600 dark:text-gray-400"
                     >Processing... <span x-text="operationProgress"></span> /
                     <span x-text="operationTotal"></span
                 ></span>
                 <span
-                    class="text-sm text-gray-600"
+                    class="text-sm text-gray-600 dark:text-gray-400"
                     x-text="operationTotal > 0 ? Math.round((operationProgress / operationTotal) * 100) + '%' : ''"
                 ></span>
             </div>
-            <div class="w-full bg-gray-200 rounded-full h-2">
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div
                     class="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     :style="`width: ${operationTotal > 0 ? (operationProgress / operationTotal) * 100 : 0}%`"
@@ -330,9 +341,13 @@
         </div>
 
         <!-- Table -->
-        <div class="bg-white shadow overflow-hidden rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+        <div
+            class="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg"
+        >
+            <table
+                class="min-w-full divide-y divide-gray-200 dark:divide-gray-700"
+            >
+                <thead class="bg-gray-50 dark:bg-gray-700">
                     <tr>
                         <th class="px-6 py-3 text-left">
                             <label class="inline-flex items-center">
@@ -340,55 +355,58 @@
                                     type="checkbox"
                                     @change="selectedItems = $event.target.checked ? cleanupItems.map(i => i.id) : []"
                                     :checked="selectedItems.length === cleanupItems.length && cleanupItems.length > 0"
-                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
                                 />
-                                <span class="ml-2 text-xs text-gray-500"
+                                <span
+                                    class="ml-2 text-xs text-gray-500 dark:text-gray-400"
                                     >Select All</span
                                 >
                             </label>
                         </th>
                         <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                         >
                             Name
                         </th>
                         <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                         >
                             Documents
                         </th>
                         <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                         >
                             Match Type
                         </th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody
+                    class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
+                >
                     <template x-for="item in cleanupItems" :key="item.id">
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <input
                                     type="checkbox"
                                     :value="item.id"
                                     x-model="selectedItems"
-                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700"
                                 />
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span
-                                    class="text-sm font-medium text-gray-900"
+                                    class="text-sm font-medium text-gray-900 dark:text-white"
                                     x-text="item.name"
                                 ></span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span
-                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                                     x-text="item.document_count + ' docs'"
                                 ></span>
                             </td>
                             <td
-                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"
                             >
                                 <span x-text="item.match_type"></span>
                             </td>
@@ -401,7 +419,7 @@
         <!-- Empty State -->
         <div
             x-show="cleanupItems.length === 0"
-            class="text-center py-8 text-gray-500"
+            class="text-center py-8 text-gray-500 dark:text-gray-400"
         >
             No items found with ≤ <span x-text="maxDocs"></span> documents.
         </div>
@@ -411,7 +429,7 @@
             class="mt-4 flex items-center justify-between"
             x-show="cleanupTotalPages > 1"
         >
-            <div class="text-sm text-gray-700">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
                 Page <span x-text="cleanupCurrentPage"></span> of
                 <span x-text="cleanupTotalPages"></span>
                 (<span x-text="totalCleanupItems"></span> total)
@@ -420,16 +438,16 @@
                 <button
                     @click="loadCleanup(cleanupCurrentPage - 1)"
                     :disabled="cleanupCurrentPage <= 1"
-                    :class="cleanupCurrentPage <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300'"
-                    class="px-3 py-1 bg-gray-200 rounded text-sm"
+                    :class="cleanupCurrentPage <= 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300 dark:hover:bg-gray-600'"
+                    class="px-3 py-1 bg-gray-200 dark:bg-gray-700 dark:text-white rounded text-sm"
                 >
                     Previous
                 </button>
                 <button
                     @click="loadCleanup(cleanupCurrentPage + 1)"
                     :disabled="cleanupCurrentPage >= cleanupTotalPages"
-                    :class="cleanupCurrentPage >= cleanupTotalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300'"
-                    class="px-3 py-1 bg-gray-200 rounded text-sm"
+                    :class="cleanupCurrentPage >= cleanupTotalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-300 dark:hover:bg-gray-600'"
+                    class="px-3 py-1 bg-gray-200 dark:bg-gray-700 dark:text-white rounded text-sm"
                 >
                     Next
                 </button>
@@ -440,19 +458,19 @@
     <!-- Merge Tab -->
     <div x-show="activeTab === 'merge' && !loading " x-cloak>
         <!-- Selected Items for Merge (always visible at top) -->
-        <div class="mb-6 bg-white shadow rounded-lg p-4">
+        <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
             <div class="flex items-center justify-between mb-3">
-                <h4 class="text-md font-medium text-gray-900">
+                <h4 class="text-md font-medium text-gray-900 dark:text-white">
                     Selected for Merge
                     <span
-                        class="text-sm font-normal text-gray-500"
+                        class="text-sm font-normal text-gray-500 dark:text-gray-400"
                         x-text="`(${mergeSelectedItems.length} items)`"
                     ></span>
                 </h4>
                 <button
                     x-show="mergeSelectedItems.length > 0"
                     @click="clearMergeSelection()"
-                    class="text-sm text-gray-500 hover:text-gray-700"
+                    class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                 >
                     Clear All
                 </button>
@@ -486,7 +504,7 @@
             <!-- Empty state -->
             <div
                 x-show="mergeSelectedItems.length === 0"
-                class="text-sm text-gray-500 mb-4"
+                class="text-sm text-gray-500 dark:text-gray-400 mb-4"
             >
                 Click on suggestion groups below or use the custom search to
                 select items to merge.
@@ -498,7 +516,7 @@
                     type="text"
                     x-model="mergeTargetName"
                     placeholder="Target name for merged item..."
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                 />
                 <button
                     @click="performMerge()"
@@ -534,12 +552,16 @@
             <!-- Progress Bar -->
             <div
                 x-show="operationInProgress"
-                class="mt-4 bg-gray-50 rounded-lg p-3"
+                class="mt-4 bg-gray-50 dark:bg-gray-700 rounded-lg p-3"
             >
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm text-gray-600">Processing...</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-400"
+                        >Processing...</span
+                    >
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                    class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2"
+                >
                     <div
                         class="bg-purple-600 h-2 rounded-full animate-pulse"
                         style="width: 100%"
@@ -549,8 +571,8 @@
         </div>
 
         <!-- Custom Selection Search -->
-        <div class="mb-6 bg-white shadow rounded-lg p-4">
-            <h4 class="text-md font-medium text-gray-900 mb-3">
+        <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+            <h4 class="text-md font-medium text-gray-900 dark:text-white mb-3">
                 Custom Selection
             </h4>
             <div class="space-y-3">
@@ -559,13 +581,13 @@
                     x-model="customMergeSearch"
                     @input.debounce.300ms="searchItemsForCustomMerge()"
                     placeholder="Search items to add to merge selection..."
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
                 />
 
                 <!-- Search Results -->
                 <div
                     x-show="customMergeSearchResults.length > 0"
-                    class="max-h-48 overflow-y-auto border border-gray-300 rounded-md bg-gray-50"
+                    class="max-h-48 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700"
                 >
                     <template
                         x-for="item in customMergeSearchResults"
@@ -573,13 +595,13 @@
                     >
                         <div
                             @click="addItemToMergeSelection(item)"
-                            class="px-3 py-2 hover:bg-gray-100 flex items-center justify-between border-b last:border-b-0 cursor-pointer"
-                            :class="mergeSelectedItems.includes(item.id) ? 'bg-purple-50' : ''"
+                            class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center justify-between border-b dark:border-gray-600 last:border-b-0 cursor-pointer"
+                            :class="mergeSelectedItems.includes(item.id) ? 'bg-purple-50 dark:bg-purple-900/30' : ''"
                         >
                             <div class="flex items-center space-x-2">
                                 <span
                                     class="inline-block w-4 h-4 rounded"
-                                    :class="mergeSelectedItems.includes(item.id) ? 'bg-purple-600' : 'border border-gray-300'"
+                                    :class="mergeSelectedItems.includes(item.id) ? 'bg-purple-600' : 'border border-gray-300 dark:border-gray-500'"
                                 >
                                     <svg
                                         x-show="mergeSelectedItems.includes(item.id)"
@@ -594,9 +616,12 @@
                                         />
                                     </svg>
                                 </span>
-                                <span class="text-sm" x-text="item.name"></span>
                                 <span
-                                    class="text-xs text-gray-500"
+                                    class="text-sm dark:text-white"
+                                    x-text="item.name"
+                                ></span>
+                                <span
+                                    class="text-xs text-gray-500 dark:text-gray-400"
                                     x-text="`(${item.document_count} docs)`"
                                 ></span>
                             </div>
@@ -613,7 +638,7 @@
                 x-model="mergePrefix"
                 @keyup.enter="loadMergeSuggestions()"
                 placeholder="Filter suggestions by prefix (e.g., 'account')..."
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
             />
             <button
                 @click="loadMergeSuggestions()"
@@ -623,7 +648,7 @@
             </button>
             <span
                 x-show="metadataType === 'tags'"
-                class="text-sm text-gray-500"
+                class="text-sm text-gray-500 dark:text-gray-400"
             >
                 (excluding auto-match items and patterns: {{ exclude_patterns
                 }})
@@ -635,26 +660,29 @@
             <template x-for="(group, prefix) in mergeGroups" :key="prefix">
                 <div
                     @click="selectGroupForMerge(prefix, group, $event)"
-                    class="bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-purple-300 transition-all"
+                    class="bg-white dark:bg-gray-800 shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-purple-300 dark:hover:ring-purple-600 transition-all"
                     :class="isGroupSelected(prefix) ? 'ring-2 ring-purple-500' : ''"
                 >
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center space-x-3">
-                            <h4 class="text-lg font-medium text-gray-900">
+                            <h4
+                                class="text-lg font-medium text-gray-900 dark:text-white"
+                            >
                                 "<span x-text="prefix"></span>..."
                             </h4>
                             <span
-                                class="text-sm text-gray-500"
+                                class="text-sm text-gray-500 dark:text-gray-400"
                                 x-text="`${group[itemKey].length} items, ${group.total_documents} total docs`"
                             ></span>
                             <span
                                 x-show="isGroupSelected(prefix)"
-                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800"
+                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
                             >
                                 Selected
                             </span>
                         </div>
-                        <span class="text-sm text-purple-600"
+                        <span
+                            class="text-sm text-purple-600 dark:text-purple-400"
                             >Click to add all items</span
                         >
                     </div>
@@ -683,7 +711,7 @@
         <!-- Empty State -->
         <div
             x-show="Object.keys(mergeGroups).length === 0"
-            class="text-center py-8 text-gray-500"
+            class="text-center py-8 text-gray-500 dark:text-gray-400"
         >
             No merge suggestions found. Try adjusting the prefix filter or use
             the custom search above.
@@ -712,38 +740,40 @@
                 >&#8203;</span
             >
             <div
-                class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
             >
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div
+                    class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4"
+                >
                     <h3
-                        class="text-lg leading-6 font-medium text-gray-900 mb-4"
+                        class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4"
                         x-text="editModalTitle"
                     ></h3>
                     <div class="space-y-4">
                         <div>
                             <label
-                                class="block text-sm font-medium text-gray-700"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >Name</label
                             >
                             <input
                                 type="text"
                                 x-model="editForm.name"
-                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
                             />
                         </div>
                         <div x-show="metadataType === 'tags'">
                             <label
-                                class="block text-sm font-medium text-gray-700"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300"
                                 >Color</label
                             >
                             <div class="mt-1 flex items-center space-x-2">
                                 <input
                                     type="color"
                                     x-model="editForm.color"
-                                    class="h-10 w-20 rounded border border-gray-300"
+                                    class="h-10 w-20 rounded border border-gray-300 dark:border-gray-600"
                                 />
                                 <span
-                                    class="text-sm text-gray-500"
+                                    class="text-sm text-gray-500 dark:text-gray-400"
                                     x-text="editForm.color"
                                 ></span>
                             </div>
@@ -751,7 +781,7 @@
                     </div>
                 </div>
                 <div
-                    class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"
+                    class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"
                 >
                     <button
                         type="button"
@@ -763,7 +793,7 @@
                     <button
                         type="button"
                         @click="showEditModal = false"
-                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                     >
                         Cancel
                     </button>
@@ -793,15 +823,17 @@
                 >&#8203;</span
             >
             <div
-                class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+                class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
             >
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div
+                    class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4"
+                >
                     <div class="sm:flex sm:items-start">
                         <div
-                            class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+                            class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 sm:mx-0 sm:h-10 sm:w-10"
                         >
                             <svg
-                                class="h-6 w-6 text-red-600"
+                                class="h-6 w-6 text-red-600 dark:text-red-400"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -818,12 +850,12 @@
                             class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left"
                         >
                             <h3
-                                class="text-lg leading-6 font-medium text-gray-900"
+                                class="text-lg leading-6 font-medium text-gray-900 dark:text-white"
                                 x-text="confirmTitle"
                             ></h3>
                             <div class="mt-2">
                                 <p
-                                    class="text-sm text-gray-500 whitespace-pre-wrap"
+                                    class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap"
                                     x-text="confirmMessage"
                                 ></p>
                             </div>
@@ -831,7 +863,7 @@
                     </div>
                 </div>
                 <div
-                    class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"
+                    class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse"
                 >
                     <button
                         type="button"
@@ -843,7 +875,7 @@
                     <button
                         type="button"
                         @click="showConfirm = false"
-                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                     >
                         Cancel
                     </button>
