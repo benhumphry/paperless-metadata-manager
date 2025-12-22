@@ -313,8 +313,33 @@
                         ></span
                         >)</span
                     >
-                    <span x-show="operationInProgress">Deleting...</span>
+                    <span x-show="operationInProgress && operationTotal > 0">
+                        Deleting <span x-text="operationProgress"></span>/<span
+                            x-text="operationTotal"
+                        ></span
+                        >...
+                    </span>
+                    <span x-show="operationInProgress && operationTotal === 0"
+                        >Deleting...</span
+                    >
                 </button>
+            </div>
+
+            <!-- Progress Bar -->
+            <div
+                x-show="operationInProgress && operationTotal > 0"
+                class="px-4 py-2 bg-gray-50 border-t"
+            >
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                        class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        :style="`width: ${(operationProgress / operationTotal) * 100}%`"
+                    ></div>
+                </div>
+                <div class="text-xs text-gray-600 mt-1 text-center">
+                    <span x-text="operationProgress"></span> of
+                    <span x-text="operationTotal"></span> tags processed
+                </div>
             </div>
 
             <!-- Select All -->
@@ -575,6 +600,8 @@
             activeTab: "all",
             loading: false,
             operationInProgress: false,
+            operationProgress: 0,
+            operationTotal: 0,
             tags: [],
             lowUsageTags: [],
             mergeGroups: {},
@@ -737,48 +764,80 @@
                 this.confirmMessage = `Are you sure you want to delete ${this.selectedTags.length} tag(s)? This cannot be undone.`;
                 this.confirmAction = async () => {
                     this.operationInProgress = true;
+                    this.operationTotal = this.selectedTags.length;
+                    this.operationProgress = 0;
+
+                    const tagIds = [...this.selectedTags];
+                    const batchSize = 10;
+                    let successCount = 0;
+                    let failCount = 0;
+
                     try {
-                        const resp = await fetch("/api/tags/delete", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                tag_ids: this.selectedTags,
-                            }),
-                        });
+                        // Process in batches for better progress tracking
+                        for (let i = 0; i < tagIds.length; i += batchSize) {
+                            const batch = tagIds.slice(i, i + batchSize);
 
-                        if (!resp.ok) {
-                            const errorData = await resp
-                                .json()
-                                .catch(() => ({ detail: "Unknown error" }));
-                            showToast(
-                                `Delete failed: ${errorData.detail || resp.statusText}`,
-                                "error",
+                            try {
+                                const resp = await fetch("/api/tags/delete", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        tag_ids: batch,
+                                    }),
+                                });
+
+                                if (!resp.ok) {
+                                    const errorData = await resp
+                                        .json()
+                                        .catch(() => ({
+                                            detail: "Unknown error",
+                                        }));
+                                    failCount += batch.length;
+                                } else {
+                                    const data = await resp.json();
+                                    if (data.success) {
+                                        successCount += batch.length;
+                                    } else {
+                                        failCount += batch.length;
+                                    }
+                                }
+                            } catch (e) {
+                                failCount += batch.length;
+                            }
+
+                            this.operationProgress = Math.min(
+                                i + batchSize,
+                                tagIds.length,
                             );
-                            return;
                         }
 
-                        const data = await resp.json();
-
-                        if (data.success) {
-                            showToast(data.message, "success");
-                            this.selectedTags = [];
-                            await this.loadLowUsage();
-                            await this.loadTags();
+                        // Show results
+                        if (failCount > 0) {
+                            showToast(
+                                `Deleted ${successCount} tags, ${failCount} failed`,
+                                failCount > successCount ? "error" : "success",
+                            );
                         } else {
-                            showToast("Delete failed", "error");
+                            showToast(
+                                `Successfully deleted ${successCount} tags`,
+                                "success",
+                            );
                         }
-                    } catch (e) {
-                        // Show error but still refresh the lists in case deletion succeeded
-                        showToast(
-                            "Delete operation completed with errors: " +
-                                e.message,
-                            "error",
-                        );
+
                         this.selectedTags = [];
                         await this.loadLowUsage();
                         await this.loadTags();
+                    } catch (e) {
+                        showToast(
+                            "Delete operation failed: " + e.message,
+                            "error",
+                        );
                     } finally {
                         this.operationInProgress = false;
+                        this.operationProgress = 0;
+                        this.operationTotal = 0;
                     }
                 };
                 this.showConfirm = true;
