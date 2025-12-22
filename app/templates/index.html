@@ -530,6 +530,22 @@
                     Merge Selected
                 </button>
             </div>
+
+            <!-- Progress Bar -->
+            <div
+                x-show="operationInProgress"
+                class="mt-4 bg-gray-50 rounded-lg p-3"
+            >
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-gray-600">Processing...</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                        class="bg-purple-600 h-2 rounded-full animate-pulse"
+                        style="width: 100%"
+                    ></div>
+                </div>
+            </div>
         </div>
 
         <!-- Custom Selection Search -->
@@ -612,22 +628,6 @@
                 (excluding auto-match items and patterns: {{ exclude_patterns
                 }})
             </span>
-        </div>
-
-        <!-- Progress Bar -->
-        <div
-            x-show="operationInProgress"
-            class="mb-4 bg-white shadow rounded-lg p-4"
-        >
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-sm text-gray-600">Processing...</span>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-2">
-                <div
-                    class="bg-purple-600 h-2 rounded-full animate-pulse"
-                    style="width: 100%"
-                ></div>
-            </div>
         </div>
 
         <!-- Merge Suggestion Groups -->
