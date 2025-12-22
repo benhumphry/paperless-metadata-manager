@@ -41,6 +41,38 @@ class Tag:
 
 
 @dataclass
+class Correspondent:
+    """Represents a Paperless-ngx correspondent."""
+
+    id: int
+    name: str
+    slug: str
+    matching_algorithm: int
+    match: str
+    is_insensitive: bool
+    document_count: int
+
+    @property
+    def match_type_name(self) -> str:
+        """Human-readable matching algorithm name."""
+        names = {
+            0: "None",
+            1: "Any",
+            2: "All",
+            3: "Literal",
+            4: "Regex",
+            5: "Fuzzy",
+            6: "Auto",
+        }
+        return names.get(self.matching_algorithm, str(self.matching_algorithm))
+
+    @property
+    def is_auto(self) -> bool:
+        """Check if correspondent uses automatic matching."""
+        return self.matching_algorithm == 6
+
+
+@dataclass
 class Document:
     """Represents a Paperless-ngx document (minimal info)."""
 
@@ -257,6 +289,197 @@ class PaperlessClient:
                 document_count=t.get("document_count", 0),
             )
         return None
+
+    async def get_all_correspondents(self) -> list[Correspondent]:
+        """Fetch all correspondents with document counts."""
+        correspondents = []
+        url = "/api/correspondents/?page_size=100"
+
+        while url:
+            resp = await self.client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+            for c in data.get("results", []):
+                correspondents.append(
+                    Correspondent(
+                        id=c["id"],
+                        name=c["name"],
+                        slug=c.get("slug", ""),
+                        matching_algorithm=c.get("matching_algorithm", 0),
+                        match=c.get("match", ""),
+                        is_insensitive=c.get("is_insensitive", True),
+                        document_count=c.get("document_count", 0),
+                    )
+                )
+
+            next_url = data.get("next")
+            if next_url:
+                if next_url.startswith("http"):
+                    url = next_url.replace(self.base_url, "")
+                else:
+                    url = next_url
+            else:
+                url = None
+
+        return correspondents
+
+    async def get_documents_with_correspondent(self, correspondent_id: int) -> list[Document]:
+        """Get all documents that have a specific correspondent."""
+        docs = []
+        url = f"/api/documents/?correspondent__id={correspondent_id}&page_size=100"
+
+        while url:
+            resp = await self.client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+            for d in data.get("results", []):
+                docs.append(Document(id=d["id"], title=d.get("title", "")))
+
+            next_url = data.get("next")
+            if next_url:
+                if next_url.startswith("http"):
+                    url = next_url.replace(self.base_url, "")
+                else:
+                    url = next_url
+            else:
+                url = None
+
+        return docs
+
+    async def delete_correspondent(self, correspondent_id: int) -> None:
+        """Delete a single correspondent."""
+        resp = await self.client.delete(f"/api/correspondents/{correspondent_id}/")
+        resp.raise_for_status()
+
+    async def bulk_delete_correspondents(self, correspondent_ids: list[int]) -> None:
+        """Delete multiple correspondents at once."""
+        if not correspondent_ids:
+            return
+
+        # Try bulk delete first
+        try:
+            resp = await self.client.post(
+                "/api/bulk_edit_objects/",
+                json={
+                    "objects": correspondent_ids,
+                    "object_type": "correspondents",
+                    "operation": "delete",
+                },
+            )
+            resp.raise_for_status()
+            return
+        except httpx.HTTPStatusError as e:
+            # If bulk endpoint doesn't exist (404), fall back to individual deletes
+            if e.response.status_code == 404:
+                batch_size = 10
+                for i in range(0, len(correspondent_ids), batch_size):
+                    batch = correspondent_ids[i : i + batch_size]
+                    for correspondent_id in batch:
+                        try:
+                            await self.delete_correspondent(correspondent_id)
+                        except Exception as delete_error:
+                            print(
+                                f"Failed to delete correspondent {correspondent_id}: {delete_error}"
+                            )
+                return
+
+            try:
+                error_detail = e.response.json()
+            except Exception:
+                error_detail = e.response.text
+            raise Exception(
+                f"Paperless API error (status {e.response.status_code}): {error_detail}"
+            )
+        except httpx.TimeoutException:
+            raise Exception(
+                f"Operation timed out while deleting {len(correspondent_ids)} correspondents. "
+                "The correspondents may still be deleted - please refresh to verify."
+            )
+        except Exception as e:
+            if "bulk_delete_correspondents" not in str(e):
+                raise Exception(f"Failed to delete correspondents: {str(e)}")
+            raise
+
+    async def create_correspondent(self, name: str, **kwargs) -> Correspondent:
+        """Create a new correspondent."""
+        data = {"name": name, **kwargs}
+        resp = await self.client.post("/api/correspondents/", json=data)
+        resp.raise_for_status()
+        c = resp.json()
+        return Correspondent(
+            id=c["id"],
+            name=c["name"],
+            slug=c.get("slug", ""),
+            matching_algorithm=c.get("matching_algorithm", 0),
+            match=c.get("match", ""),
+            is_insensitive=c.get("is_insensitive", True),
+            document_count=c.get("document_count", 0),
+        )
+
+    async def get_correspondent_by_name(self, name: str) -> Correspondent | None:
+        """Find a correspondent by exact name (case-insensitive)."""
+        resp = await self.client.get(f"/api/correspondents/?name__iexact={name}")
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if results:
+            c = results[0]
+            return Correspondent(
+                id=c["id"],
+                name=c["name"],
+                slug=c.get("slug", ""),
+                matching_algorithm=c.get("matching_algorithm", 0),
+                match=c.get("match", ""),
+                is_insensitive=c.get("is_insensitive", True),
+                document_count=c.get("document_count", 0),
+            )
+        return None
+
+    async def set_correspondent_on_documents(
+        self, doc_ids: list[int], correspondent_id: int
+    ) -> None:
+        """Set a correspondent on multiple documents."""
+        if not doc_ids:
+            return
+
+        resp = await self.client.post(
+            "/api/documents/bulk_edit/",
+            json={
+                "documents": doc_ids,
+                "method": "set_correspondent",
+                "parameters": {"correspondent": correspondent_id},
+            },
+        )
+        resp.raise_for_status()
+
+
+def find_low_usage_correspondents(
+    correspondents: list[Correspondent],
+    max_docs: int = 0,
+    exclude_patterns: list[str] | None = None,
+) -> list[Correspondent]:
+    """Find correspondents with document count <= max_docs, excluding specified patterns."""
+    exclude_patterns = exclude_patterns or []
+    low_usage = []
+
+    for correspondent in correspondents:
+        if correspondent.document_count > max_docs:
+            continue
+
+        excluded = False
+        for pattern in exclude_patterns:
+            if re.search(pattern, correspondent.name, re.IGNORECASE):
+                excluded = True
+                break
+
+        if correspondent.is_auto:
+            excluded = True
+
+        if not excluded:
+            low_usage.append(correspondent)
+
+    return low_usage
 
 
 def find_low_usage_tags(
