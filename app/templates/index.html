@@ -179,6 +179,11 @@
                         >
                             Color
                         </th>
+                        <th
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Actions
+                        </th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -208,6 +213,16 @@
                                     :style="`background-color: ${tag.color}`"
                                 >
                                 </span>
+                            </td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
+                            >
+                                <button
+                                    @click="editTag(tag)"
+                                    class="text-blue-600 hover:text-blue-900"
+                                >
+                                    Edit
+                                </button>
                             </td>
                         </tr>
                     </template>
@@ -805,6 +820,11 @@
                         >
                             Match Type
                         </th>
+                        <th
+                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                            Actions
+                        </th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -831,6 +851,16 @@
                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
                                 x-text="correspondent.match_type"
                             ></td>
+                            <td
+                                class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
+                            >
+                                <button
+                                    @click="editCorrespondent(correspondent)"
+                                    class="text-blue-600 hover:text-blue-900"
+                                >
+                                    Edit
+                                </button>
+                            </td>
                         </tr>
                     </template>
                 </tbody>
@@ -1443,6 +1473,105 @@
             </div>
         </div>
     </div>
+
+    <!-- Edit Modal -->
+    <div
+        x-show="showEditModal"
+        x-cloak
+        class="fixed inset-0 z-50 overflow-y-auto"
+        aria-labelledby="modal-title"
+        role="dialog"
+        aria-modal="true"
+    >
+        <div
+            class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+        >
+            <div
+                class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                @click="showEditModal = false"
+            ></div>
+            <div
+                class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6"
+            >
+                <div>
+                    <div class="mt-3 text-center sm:mt-5">
+                        <h3
+                            class="text-lg leading-6 font-medium text-gray-900"
+                            x-text="editModalTitle"
+                        ></h3>
+                        <div class="mt-4 space-y-4">
+                            <!-- Name Field -->
+                            <div class="text-left">
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                    >Name</label
+                                >
+                                <input
+                                    type="text"
+                                    x-model="editForm.name"
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                />
+                            </div>
+                            <!-- Color Field (for tags only) -->
+                            <div class="text-left" x-show="editType === 'tag'">
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                    >Color</label
+                                >
+                                <input
+                                    type="color"
+                                    x-model="editForm.color"
+                                    class="mt-1 block w-full h-10 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense"
+                >
+                    <button
+                        @click="saveEdit()"
+                        :disabled="operationInProgress"
+                        :class="operationInProgress ? 'opacity-50 cursor-not-allowed' : ''"
+                        type="button"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:col-start-2 sm:text-sm"
+                    >
+                        <svg
+                            x-show="operationInProgress"
+                            class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                        <span x-show="!operationInProgress">Save</span>
+                        <span x-show="operationInProgress">Saving...</span>
+                    </button>
+                    <button
+                        @click="showEditModal = false"
+                        type="button"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:col-start-1 sm:text-sm"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %} {% block scripts %}
 <script>
@@ -1502,6 +1631,16 @@
             confirmTitle: "",
             confirmMessage: "",
             confirmAction: () => {},
+
+            // Edit modal
+            showEditModal: false,
+            editModalTitle: "",
+            editType: "", // 'tag' or 'correspondent'
+            editId: null,
+            editForm: {
+                name: "",
+                color: "",
+            },
 
             // Computed
             get filteredTags() {
@@ -1914,6 +2053,86 @@
                     }
                 };
                 this.showConfirm = true;
+            },
+
+            // Edit Methods
+
+            editTag(tag) {
+                this.editType = "tag";
+                this.editId = tag.id;
+                this.editModalTitle = `Edit Tag: ${tag.name}`;
+                this.editForm = {
+                    name: tag.name,
+                    color: tag.color || "#a6cee3",
+                };
+                this.showEditModal = true;
+            },
+
+            editCorrespondent(correspondent) {
+                this.editType = "correspondent";
+                this.editId = correspondent.id;
+                this.editModalTitle = `Edit Correspondent: ${correspondent.name}`;
+                this.editForm = {
+                    name: correspondent.name,
+                    color: "",
+                };
+                this.showEditModal = true;
+            },
+
+            async saveEdit() {
+                if (!this.editForm.name) {
+                    showToast("Name is required", "error");
+                    return;
+                }
+
+                this.operationInProgress = true;
+                try {
+                    const endpoint =
+                        this.editType === "tag"
+                            ? `/api/tags/${this.editId}`
+                            : `/api/correspondents/${this.editId}`;
+
+                    const payload = { name: this.editForm.name };
+                    if (this.editType === "tag" && this.editForm.color) {
+                        payload.color = this.editForm.color;
+                    }
+
+                    const resp = await fetch(endpoint, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (!resp.ok) {
+                        const errorData = await resp
+                            .json()
+                            .catch(() => ({ detail: "Unknown error" }));
+                        showToast(
+                            `Update failed: ${errorData.detail || resp.statusText}`,
+                            "error",
+                        );
+                        return;
+                    }
+
+                    const data = await resp.json();
+                    if (data.success) {
+                        showToast(data.message, "success");
+                        this.showEditModal = false;
+
+                        // Reload the appropriate list
+                        if (this.editType === "tag") {
+                            await this.loadTags();
+                        } else {
+                            await this.loadCorrespondents();
+                        }
+                    } else {
+                        showToast("Update failed", "error");
+                    }
+                } catch (e) {
+                    showToast("Update failed: " + e.message, "error");
+                } finally {
+                    this.operationInProgress = false;
+                }
             },
 
             // Correspondent Methods
