@@ -13,12 +13,6 @@
             <option value="tags">Tags</option>
             <option value="correspondents">Correspondents</option>
             <option value="document_types">Document Types</option>
-            <template x-for="field in customFields" :key="field.id">
-                <option
-                    :value="'custom_field_' + field.id"
-                    x-text="'Custom Field: ' + field.name"
-                ></option>
-            </template>
         </select>
     </div>
 
@@ -85,36 +79,8 @@
         </svg>
     </div>
 
-    <!-- Not Implemented Message for Custom Fields -->
-    <div
-        x-show="isCustomField && !loading"
-        x-cloak
-        class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center"
-    >
-        <svg
-            class="mx-auto h-12 w-12 text-yellow-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-        >
-            <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-        </svg>
-        <h3 class="mt-4 text-lg font-medium text-yellow-800">
-            Custom Field Management
-        </h3>
-        <p class="mt-2 text-sm text-yellow-600">
-            Management of custom fields is not yet implemented. This feature
-            will be available in a future update.
-        </p>
-    </div>
-
     <!-- All Tab -->
-    <div x-show="activeTab === 'all' && !loading && !isCustomField" x-cloak>
+    <div x-show="activeTab === 'all' && !loading " x-cloak>
         <!-- Toolbar -->
         <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center space-x-4">
@@ -267,7 +233,7 @@
     </div>
 
     <!-- Cleanup Tab -->
-    <div x-show="activeTab === 'cleanup' && !loading && !isCustomField" x-cloak>
+    <div x-show="activeTab === 'cleanup' && !loading " x-cloak>
         <!-- Toolbar -->
         <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center space-x-4">
@@ -453,7 +419,7 @@
     </div>
 
     <!-- Merge Tab -->
-    <div x-show="activeTab === 'merge' && !loading && !isCustomField" x-cloak>
+    <div x-show="activeTab === 'merge' && !loading " x-cloak>
         <!-- Selected Items for Merge (always visible at top) -->
         <div class="mb-6 bg-white shadow rounded-lg p-4">
             <div class="flex items-center justify-between mb-3">
@@ -878,8 +844,6 @@
             operationInProgress: false,
             operationProgress: 0,
             operationTotal: 0,
-            customFields: [],
-
             // Data arrays
             items: [],
             cleanupItems: [],
@@ -927,10 +891,6 @@
             },
 
             // Computed
-            get isCustomField() {
-                return this.metadataType.startsWith("custom_field_");
-            },
-
             get apiEndpoint() {
                 if (this.metadataType === "tags") return "/api/tags";
                 if (this.metadataType === "correspondents")
@@ -974,19 +934,7 @@
 
             // Methods
             async init() {
-                await this.loadCustomFields();
                 await this.loadData();
-            },
-
-            async loadCustomFields() {
-                try {
-                    const resp = await fetch("/api/custom_fields");
-                    const data = await resp.json();
-                    this.customFields = data.custom_fields || [];
-                } catch (e) {
-                    console.error("Failed to load custom fields:", e);
-                    this.customFields = [];
-                }
             },
 
             onMetadataTypeChange() {
@@ -1010,7 +958,7 @@
             },
 
             async loadData(page = null) {
-                if (this.isCustomField || !this.apiEndpoint) return;
+                if (!this.apiEndpoint) return;
 
                 this.loading = true;
                 if (page !== null) {
@@ -1033,7 +981,7 @@
             },
 
             async loadCleanup(page = null) {
-                if (this.isCustomField || !this.apiEndpoint) return;
+                if (!this.apiEndpoint) return;
 
                 this.loading = true;
                 this.selectedItems = [];
@@ -1058,7 +1006,7 @@
             },
 
             async loadMergeSuggestions() {
-                if (this.isCustomField || !this.apiEndpoint) return;
+                if (!this.apiEndpoint) return;
 
                 this.loading = true;
                 try {

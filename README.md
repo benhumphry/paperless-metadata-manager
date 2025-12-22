@@ -225,6 +225,25 @@ paperless-tag-manager/
 | `/api/tags/merge/preview` | POST | Preview merge operation |
 | `/api/tags/merge` | POST | Execute merge operation |
 
+## Future Enhancements
+
+### Custom Field Value Management
+
+Support for managing custom field values is planned for a future release. Unlike tags, correspondents, and document types (which are standalone entities), custom fields work differently in Paperless-ngx:
+
+**Challenges:**
+- Custom field **values** are stored on documents, not as separate entities
+- There's no API endpoint to list all unique values for a custom field
+- Aggregating values requires scanning all documents (performance impact)
+- Only "select" type fields have discrete, mergeable values
+- API format for select options changed in Paperless-ngx API v7+
+
+**Planned Approach:**
+- Support only "select" type custom fields initially
+- Build a value aggregation layer that scans documents
+- Use the `bulk_edit` API with `modify_custom_fields` for merging values
+- Implement "merge" as reassigning documents from one value to another
+
 ## Contributing
 
 Contributions are welcome! Please:
