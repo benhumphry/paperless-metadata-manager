@@ -486,19 +486,48 @@
                             />
                             <button
                                 @click="mergeTags(prefix, group)"
-                                class="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
+                                :disabled="!group.selected_tags || group.selected_tags.length === 0"
+                                :class="(!group.selected_tags || group.selected_tags.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                                class="px-3 py-1 bg-purple-600 text-white text-sm rounded"
                             >
                                 Merge
                             </button>
                         </div>
                     </div>
+                    <div
+                        class="px-4 py-2 bg-gray-100 border-b flex items-center justify-between"
+                    >
+                        <label class="inline-flex items-center">
+                            <input
+                                type="checkbox"
+                                @change="group.selected_tags = $event.target.checked ? group.tags.map(t => t.id) : []"
+                                :checked="group.selected_tags && group.selected_tags.length === group.tags.length"
+                                class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <span class="ml-2 text-sm text-gray-600"
+                                >Select All</span
+                            >
+                        </label>
+                        <span class="text-xs text-gray-500">
+                            <span
+                                x-text="group.selected_tags ? group.selected_tags.length : 0"
+                            ></span>
+                            of <span x-text="group.tags.length"></span> selected
+                        </span>
+                    </div>
                     <div class="divide-y divide-gray-200">
                         <template x-for="tag in group.tags" :key="tag.id">
                             <div
-                                class="px-4 py-2 flex items-center justify-between hover:bg-gray-50"
+                                class="px-4 py-2 flex items-center hover:bg-gray-50"
                             >
+                                <input
+                                    type="checkbox"
+                                    :value="tag.id"
+                                    x-model="group.selected_tags"
+                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                />
                                 <span
-                                    class="text-sm text-gray-900"
+                                    class="ml-3 flex-1 text-sm text-gray-900"
                                     x-text="tag.name"
                                 ></span>
                                 <span
@@ -734,9 +763,11 @@
                     const resp = await fetch(url);
                     const data = await resp.json();
 
-                    // Add target_name field to each group
+                    // Add target_name and selected_tags field to each group
                     for (const [prefix, group] of Object.entries(data.groups)) {
                         group.target_name = group.suggested_name;
+                        // Initially select all tags in the group
+                        group.selected_tags = group.tags.map((t) => t.id);
                     }
 
                     this.mergeGroups = data.groups;
@@ -848,11 +879,20 @@
             },
 
             mergeTags(prefix, group) {
-                const sourceIds = group.tags.map((t) => t.id);
+                const sourceIds =
+                    group.selected_tags || group.tags.map((t) => t.id);
                 const targetName = group.target_name || group.suggested_name;
 
+                if (sourceIds.length === 0) {
+                    showToast(
+                        "Please select at least one tag to merge",
+                        "error",
+                    );
+                    return;
+                }
+
                 this.confirmTitle = "Merge Tags";
-                this.confirmMessage = `Merge ${group.tags.length} tags into "${targetName}"? ${group.total_documents} documents will be re-tagged.`;
+                this.confirmMessage = `Merge ${sourceIds.length} selected tag(s) into "${targetName}"?`;
                 this.confirmAction = async () => {
                     this.operationInProgress = true;
                     try {
