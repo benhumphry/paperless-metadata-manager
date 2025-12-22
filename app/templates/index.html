@@ -494,26 +494,70 @@
                             </button>
                         </div>
                     </div>
-                    <div
-                        class="px-4 py-2 bg-gray-100 border-b flex items-center justify-between"
-                    >
-                        <label class="inline-flex items-center">
+                    <div class="px-4 py-2 bg-gray-100 border-b">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="inline-flex items-center">
+                                <input
+                                    type="checkbox"
+                                    @change="group.selected_tags = $event.target.checked ? group.tags.map(t => t.id) : []"
+                                    :checked="group.selected_tags && group.selected_tags.length === group.tags.length"
+                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <span class="ml-2 text-sm text-gray-600"
+                                    >Select All</span
+                                >
+                            </label>
+                            <span class="text-xs text-gray-500">
+                                <span
+                                    x-text="group.selected_tags ? group.selected_tags.length : 0"
+                                ></span>
+                                of
+                                <span x-text="group.tags.length"></span>
+                                selected
+                            </span>
+                        </div>
+                        <div class="flex items-center space-x-2">
                             <input
-                                type="checkbox"
-                                @change="group.selected_tags = $event.target.checked ? group.tags.map(t => t.id) : []"
-                                :checked="group.selected_tags && group.selected_tags.length === group.tags.length"
-                                class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                type="text"
+                                x-model="group.searchQuery"
+                                @input="searchTagsForGroup(prefix, group)"
+                                placeholder="Search to add more tags..."
+                                class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
                             />
-                            <span class="ml-2 text-sm text-gray-600"
-                                >Select All</span
-                            >
-                        </label>
-                        <span class="text-xs text-gray-500">
                             <span
-                                x-text="group.selected_tags ? group.selected_tags.length : 0"
-                            ></span>
-                            of <span x-text="group.tags.length"></span> selected
-                        </span>
+                                class="text-xs text-gray-500"
+                                x-show="group.searchResults && group.searchResults.length > 0"
+                            >
+                                <span
+                                    x-text="group.searchResults.length"
+                                ></span>
+                                found
+                            </span>
+                        </div>
+                        <div
+                            x-show="group.searchResults && group.searchResults.length > 0"
+                            class="mt-2 max-h-32 overflow-y-auto border border-gray-300 rounded bg-white"
+                        >
+                            <template
+                                x-for="result in group.searchResults"
+                                :key="result.id"
+                            >
+                                <div
+                                    class="px-2 py-1 hover:bg-gray-50 flex items-center justify-between text-sm"
+                                >
+                                    <span
+                                        x-text="result.name"
+                                        class="flex-1"
+                                    ></span>
+                                    <button
+                                        @click="addTagToGroup(prefix, group, result)"
+                                        class="px-2 py-0.5 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                     <div class="divide-y divide-gray-200">
                         <template x-for="tag in group.tags" :key="tag.id">
@@ -757,6 +801,11 @@
             async loadMergeSuggestions() {
                 this.loading = true;
                 try {
+                    // Load all tags if not already loaded (needed for search)
+                    if (this.tags.length === 0) {
+                        await this.loadTags();
+                    }
+
                     const url = this.mergePrefix
                         ? `/api/tags/merge-suggestions?prefix=${encodeURIComponent(this.mergePrefix)}`
                         : "/api/tags/merge-suggestions";
@@ -876,6 +925,39 @@
                     }
                 };
                 this.showConfirm = true;
+            },
+
+            searchTagsForGroup(prefix, group) {
+                const query = (group.searchQuery || "").toLowerCase().trim();
+                if (query.length < 2) {
+                    group.searchResults = [];
+                    return;
+                }
+
+                // Search in all tags, exclude tags already in this group
+                const existingIds = new Set(group.tags.map((t) => t.id));
+                group.searchResults = this.tags
+                    .filter(
+                        (t) =>
+                            !existingIds.has(t.id) &&
+                            t.name.toLowerCase().includes(query),
+                    )
+                    .slice(0, 10); // Limit to 10 results
+            },
+
+            addTagToGroup(prefix, group, tag) {
+                // Add tag to the group's tags array
+                if (!group.tags.find((t) => t.id === tag.id)) {
+                    group.tags.push(tag);
+                    // Auto-select the newly added tag
+                    if (!group.selected_tags.includes(tag.id)) {
+                        group.selected_tags.push(tag.id);
+                    }
+                    showToast(`Added "${tag.name}" to merge group`, "success");
+                }
+                // Clear search
+                group.searchQuery = "";
+                group.searchResults = [];
             },
 
             mergeTags(prefix, group) {
