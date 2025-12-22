@@ -919,6 +919,7 @@
             customMergeSearch: "",
             customMergeSearchResults: [],
             customMergeSelectedItems: [],
+            customMergeItemNames: {},
             customMergeTargetName: "",
             bulkMergeTargetName: "",
 
@@ -1027,6 +1028,7 @@
                 this.customMergeSearch = "";
                 this.customMergeSearchResults = [];
                 this.customMergeSelectedItems = [];
+                this.customMergeItemNames = {};
                 this.customMergeTargetName = "";
                 this.loadData();
             },
@@ -1243,10 +1245,15 @@
                     const url = `${this.apiEndpoint}?page=1&page_size=20&filter=${encodeURIComponent(this.customMergeSearch)}`;
                     const resp = await fetch(url);
                     const data = await resp.json();
-                    this.customMergeSearchResults = data[this.itemKey].filter(
+                    const results = data[this.itemKey].filter(
                         (item) =>
                             !this.customMergeSelectedItems.includes(item.id),
                     );
+                    // Cache item names for display
+                    results.forEach((item) => {
+                        this.customMergeItemNames[item.id] = item.name;
+                    });
+                    this.customMergeSearchResults = results;
                 } catch (e) {
                     console.error("Failed to search items:", e);
                     this.customMergeSearchResults = [];
@@ -1254,6 +1261,11 @@
             },
 
             getItemNameById(id) {
+                // Check cache first (populated from search results)
+                if (this.customMergeItemNames[id]) {
+                    return this.customMergeItemNames[id];
+                }
+                // Fallback to current page items
                 const item = this.items.find((i) => i.id === id);
                 return item ? item.name : `ID: ${id}`;
             },
