@@ -1,7 +1,7 @@
 services:
-  paperless-tag-manager:
+  paperless-metadata-manager:
     build: .
-    container_name: paperless-tag-manager
+    container_name: paperless-metadata-manager
     env_file:
       - .env
     ports:
@@ -12,7 +12,6 @@ services:
     #   - paperless_default
     # external_links:
     #   - paperless:paperless
-
 # Uncomment to connect to existing Paperless network:
 # networks:
 #   paperless_default:

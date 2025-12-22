@@ -1,6 +1,6 @@
-# Paperless-ngx Tag Manager
+# Paperless Metadata Manager
 
-A web-based tool for bulk tag management in [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx). Clean up unused tags, merge similar tags, and maintain a tidy document management system.
+A web-based tool for bulk metadata management in [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx). Clean up unused tags, correspondents, and document types, merge similar items, and maintain a tidy document management system.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
@@ -8,9 +8,9 @@ A web-based tool for bulk tag management in [Paperless-ngx](https://github.com/p
 
 ## Features
 
-- **📊 Tag Overview**: View all tags with document counts, sorted and filtered
-- **🧹 Cleanup**: Identify and bulk-delete tags with zero or few documents
-- **🔀 Smart Merge**: Auto-suggest similar tags for merging based on common prefixes
+- **📊 Metadata Overview**: View all tags, correspondents, and document types with document counts
+- **🧹 Cleanup**: Identify and bulk-delete items with zero or few documents
+- **🔀 Smart Merge**: Auto-suggest similar items for merging based on common prefixes
 - **🔒 Safe**: Confirmation dialogs for all destructive operations
 - **🐳 Docker Ready**: Simple deployment with Docker Compose
 
@@ -33,8 +33,8 @@ docker exec paperless python manage.py generate_api_token <username>
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/paperless-tag-manager.git
-cd paperless-tag-manager
+git clone https://github.com/yourusername/paperless-metadata-manager.git
+cd paperless-metadata-manager
 
 # Copy example config and edit
 cp example.env .env
@@ -88,36 +88,40 @@ EXCLUDE_PATTERNS=new,inbox,^project-.*,review,^archive-
 
 ## Usage
 
-### All Tags Tab
+### Metadata Type Selector
 
-View all your tags with:
-- Document count (color-coded: red=0, yellow=1, gray=2+)
+Choose from Tags, Correspondents, or Document Types using the dropdown at the top.
+
+### All Tab
+
+View all items with:
+- Document count (color-coded: red=0, green=1+)
 - Match type (None, Any, All, Literal, Regex, Fuzzy, Auto)
-- Tag color preview
+- Tag color preview (for tags only)
 
-Filter by name and sort by name or document count.
+Click column headers to sort. Filter by name using the search box.
 
 ### Cleanup Tab
 
-Find tags that are candidates for deletion:
+Find items that are candidates for deletion:
 - Filter by maximum document count (0, 1, 2, or 5)
-- Auto-excludes tags with automatic matching algorithms
-- Auto-excludes tags matching configured patterns
-- Select individual tags or use "Select All"
+- Toggle "Exclude auto-match" to show/hide auto-matching items
+- Auto-excludes items matching configured patterns (tags only)
+- Select individual items or use "Select All"
 - Bulk delete with confirmation
 
 ### Merge Tab
 
-Consolidate similar tags:
-1. Enter a prefix (e.g., "account") or leave blank for auto-suggestions
-2. Review groups of similar tags
-3. Edit the target tag name if needed
-4. Click "Merge" to combine tags
+Consolidate similar items:
+1. Click on suggestion groups to add items to selection
+2. Or use custom search to find specific items
+3. Click individual items to add/remove from selection
+4. Enter target name and click "Merge Selected"
 
 The merge process:
-1. Creates the target tag (if it doesn't exist)
-2. Adds the target tag to all affected documents
-3. Deletes the source tags
+1. Creates the target item (if it doesn't exist)
+2. Reassigns all documents to the target
+3. Deletes the source items
 
 ## Deployment Options
 
@@ -125,7 +129,7 @@ The merge process:
 
 ```yaml
 services:
-  paperless-tag-manager:
+  paperless-metadata-manager:
     build: .
     env_file: .env
     ports:
@@ -139,7 +143,7 @@ If Paperless-ngx is running in Docker, you may want to connect to the same netwo
 
 ```yaml
 services:
-  paperless-tag-manager:
+  paperless-metadata-manager:
     build: .
     env_file: .env
     ports:
@@ -189,7 +193,7 @@ uvicorn app.main:app --reload --port 8000
 ### Project Structure
 
 ```
-paperless-tag-manager/
+paperless-metadata-manager/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py              # FastAPI application
