@@ -73,6 +73,52 @@ class Correspondent:
 
 
 @dataclass
+class DocumentType:
+    """Represents a Paperless-ngx document type."""
+
+    id: int
+    name: str
+    slug: str
+    matching_algorithm: int
+    match: str
+    is_insensitive: bool
+    document_count: int
+
+    @property
+    def match_type_name(self) -> str:
+        """Human-readable matching algorithm name."""
+        names = {
+            0: "None",
+            1: "Any",
+            2: "All",
+            3: "Literal",
+            4: "Regex",
+            5: "Fuzzy",
+            6: "Auto",
+        }
+        return names.get(self.matching_algorithm, str(self.matching_algorithm))
+
+    @property
+    def is_auto(self) -> bool:
+        """Check if document type uses automatic matching."""
+        return self.matching_algorithm == 6
+
+
+@dataclass
+class CustomField:
+    """Represents a Paperless-ngx custom field."""
+
+    id: int
+    name: str
+    data_type: str  # text, url, date, boolean, integer, float, monetary, documentlink, select
+
+    @property
+    def type_name(self) -> str:
+        """Human-readable data type name."""
+        return self.data_type.capitalize()
+
+
+@dataclass
 class Document:
     """Represents a Paperless-ngx document (minimal info)."""
 
