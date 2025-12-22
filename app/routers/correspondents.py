@@ -71,6 +71,7 @@ def correspondent_to_dict(correspondent: Correspondent) -> dict:
 async def list_correspondents(
     page: int = 1,
     page_size: int = 50,
+    filter: str | None = None,
     settings: Settings = Depends(get_settings),
 ):
     """Get all correspondents with document counts (paginated)."""
@@ -79,6 +80,12 @@ async def list_correspondents(
         settings.paperless_api_token,
     ) as client:
         correspondents = await client.get_all_correspondents()
+
+        # Apply filter if provided
+        if filter:
+            filter_lower = filter.lower()
+            correspondents = [c for c in correspondents if filter_lower in c.name.lower()]
+
         sorted_correspondents = sorted(correspondents, key=lambda x: x.name.lower())
 
         # Calculate pagination

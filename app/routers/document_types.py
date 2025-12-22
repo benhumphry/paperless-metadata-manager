@@ -80,6 +80,7 @@ def document_type_to_dict(document_type: DocumentType) -> dict:
 async def list_document_types(
     page: int = 1,
     page_size: int = 50,
+    filter: str | None = None,
     settings: Settings = Depends(get_settings),
 ):
     """Get all document types with document counts (paginated)."""
@@ -88,6 +89,12 @@ async def list_document_types(
         settings.paperless_api_token,
     ) as client:
         document_types = await client.get_all_document_types()
+
+        # Apply filter if provided
+        if filter:
+            filter_lower = filter.lower()
+            document_types = [dt for dt in document_types if filter_lower in dt.name.lower()]
+
         sorted_document_types = sorted(document_types, key=lambda x: x.name.lower())
 
         # Calculate pagination

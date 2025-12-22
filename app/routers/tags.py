@@ -85,6 +85,7 @@ def tag_to_dict(tag: Tag) -> dict:
 async def list_tags(
     page: int = 1,
     page_size: int = 50,
+    filter: str | None = None,
     settings: Settings = Depends(get_settings),
 ):
     """Get all tags with document counts (paginated)."""
@@ -93,6 +94,12 @@ async def list_tags(
         settings.paperless_api_token,
     ) as client:
         tags = await client.get_all_tags()
+
+        # Apply filter if provided
+        if filter:
+            filter_lower = filter.lower()
+            tags = [t for t in tags if filter_lower in t.name.lower()]
+
         sorted_tags = sorted(tags, key=lambda x: x.name.lower())
 
         # Calculate pagination

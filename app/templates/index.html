@@ -121,6 +121,7 @@
                 <input
                     type="text"
                     x-model="filter"
+                    @input.debounce.300ms="currentPage = 1; loadData()"
                     placeholder="Filter by name..."
                     class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -979,15 +980,9 @@
             },
 
             get filteredItems() {
-                let result = this.items;
+                let result = [...this.items];
 
-                if (this.filter) {
-                    const f = this.filter.toLowerCase();
-                    result = result.filter((t) =>
-                        t.name.toLowerCase().includes(f),
-                    );
-                }
-
+                // Sorting only - filtering is done server-side
                 if (this.sortBy === "name") {
                     result.sort((a, b) => a.name.localeCompare(b.name));
                 } else if (this.sortBy === "count") {
@@ -1044,9 +1039,11 @@
                     this.currentPage = page;
                 }
                 try {
-                    const resp = await fetch(
-                        `${this.apiEndpoint}?page=${this.currentPage}&page_size=${this.pageSize}`,
-                    );
+                    let url = `${this.apiEndpoint}?page=${this.currentPage}&page_size=${this.pageSize}`;
+                    if (this.filter) {
+                        url += `&filter=${encodeURIComponent(this.filter)}`;
+                    }
+                    const resp = await fetch(url);
                     const data = await resp.json();
                     this.items = data[this.itemKey];
                     this.totalPages = data.total_pages;
