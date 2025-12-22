@@ -82,12 +82,13 @@ class PaperlessClient:
 
     async def test_connection(self) -> PaperlessInfo:
         """Test connection and get Paperless info."""
-        resp = await self.client.get("/api/")
+        # Use /api/tags/ instead of /api/ to avoid redirect
+        resp = await self.client.get("/api/tags/?page_size=1")
         resp.raise_for_status()
-        data = resp.json()
+        # Return basic info since the tags endpoint doesn't provide version
         return PaperlessInfo(
-            version=data.get("version", "unknown"),
-            api_version=data.get("api_version", 0),
+            version="connected",
+            api_version=1,
         )
 
     async def get_all_tags(self) -> list[Tag]:
@@ -269,11 +270,18 @@ def group_tags_by_prefix(tags: list[Tag], min_prefix_length: int = 3) -> dict[st
             prefix = parts[0]
         else:
             # Use first N characters as prefix
-            prefix = name_lower[:min_prefix_length] if len(name_lower) >= min_prefix_length else name_lower
+            prefix = (
+                name_lower[:min_prefix_length]
+                if len(name_lower) >= min_prefix_length
+                else name_lower
+            )
 
         if len(prefix) >= min_prefix_length:
             groups[prefix].append(tag)
 
     # Filter to groups with multiple tags
-    return {k: sorted(v, key=lambda t: (-t.document_count, t.name.lower())) 
-            for k, v in groups.items() if len(v) > 1}
+    return {
+        k: sorted(v, key=lambda t: (-t.document_count, t.name.lower()))
+        for k, v in groups.items()
+        if len(v) > 1
+    }
