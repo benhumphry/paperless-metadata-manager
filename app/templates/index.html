@@ -695,31 +695,22 @@
                             </button>
                         </div>
                     </div>
-                    <div class="border rounded-md divide-y">
+                    <div class="flex flex-wrap gap-2">
                         <template x-for="item in group[itemKey]" :key="item.id">
-                            <div
-                                class="px-4 py-2 flex items-center hover:bg-gray-50"
+                            <span
+                                @click="toggleItemInGroup(group, item.id)"
+                                class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all"
+                                :class="group.selected_items?.includes(item.id) ? '' : 'opacity-40 line-through'"
+                                :style="metadataType === 'tags'
+                                    ? `background-color: ${item.color}20; color: ${item.color}; border: 1px solid ${item.color}`
+                                    : 'background-color: #e5e7eb; color: #374151; border: 1px solid #d1d5db'"
                             >
-                                <input
-                                    type="checkbox"
-                                    :value="item.id"
-                                    x-model="group.selected_items"
-                                    class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                                />
+                                <span x-text="item.name"></span>
                                 <span
-                                    x-show="metadataType === 'tags'"
-                                    class="ml-3 w-4 h-4 rounded"
-                                    :style="`background-color: ${item.color}`"
+                                    class="ml-1 opacity-75"
+                                    x-text="`(${item.document_count})`"
                                 ></span>
-                                <span
-                                    class="ml-3 flex-1 text-sm text-gray-900"
-                                    x-text="item.name"
-                                ></span>
-                                <span
-                                    class="text-sm text-gray-500"
-                                    x-text="item.document_count + ' docs'"
-                                ></span>
-                            </div>
+                            </span>
                         </template>
                     </div>
                 </div>
@@ -1307,6 +1298,18 @@
                     showToast("Failed to merge: " + e.message, "error");
                 }
                 this.operationInProgress = false;
+            },
+
+            toggleItemInGroup(group, itemId) {
+                if (!group.selected_items) {
+                    group.selected_items = group[this.itemKey].map((i) => i.id);
+                }
+                const index = group.selected_items.indexOf(itemId);
+                if (index > -1) {
+                    group.selected_items.splice(index, 1);
+                } else {
+                    group.selected_items.push(itemId);
+                }
             },
 
             async mergeGroup(prefix, group) {
