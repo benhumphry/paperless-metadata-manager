@@ -332,13 +332,13 @@
                 ></span>
                 <span
                     class="text-sm text-gray-600"
-                    x-text="Math.round((operationProgress / operationTotal) * 100) + '%'"
+                    x-text="operationTotal > 0 ? Math.round((operationProgress / operationTotal) * 100) + '%' : ''"
                 ></span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
                 <div
                     class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    :style="`width: ${(operationProgress / operationTotal) * 100}%`"
+                    :style="`width: ${operationTotal > 0 ? (operationProgress / operationTotal) * 100 : 0}%`"
                 ></div>
             </div>
         </div>
@@ -644,13 +644,13 @@
                 ></span>
                 <span
                     class="text-sm text-gray-600"
-                    x-text="Math.round((operationProgress / operationTotal) * 100) + '%'"
+                    x-text="operationTotal > 0 ? Math.round((operationProgress / operationTotal) * 100) + '%' : ''"
                 ></span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
                 <div
                     class="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                    :style="`width: ${(operationProgress / operationTotal) * 100}%`"
+                    :style="`width: ${operationTotal > 0 ? (operationProgress / operationTotal) * 100 : 0}%`"
                 ></div>
             </div>
         </div>
