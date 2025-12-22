@@ -678,7 +678,7 @@
                             <span
                                 @click.stop="addItemToMergeSelection(item)"
                                 class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:ring-2 hover:ring-purple-300"
-                                :class="mergeSelectedItems.includes(item.id) ? 'ring-2 ring-purple-400' : 'opacity-60'"
+                                :class="mergeSelectedItems.includes(item.id) ? 'ring-2 ring-purple-400' : ''"
                                 :style="metadataType === 'tags'
                                     ? `background-color: ${item.color}20; color: ${item.color}; border: 1px solid ${item.color}`
                                     : 'background-color: #e5e7eb; color: #374151; border: 1px solid #d1d5db'"
