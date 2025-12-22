@@ -219,9 +219,15 @@
                             >
                                 <button
                                     @click="editTag(tag)"
-                                    class="text-blue-600 hover:text-blue-900"
+                                    class="text-blue-600 hover:text-blue-900 mr-3"
                                 >
                                     Edit
+                                </button>
+                                <button
+                                    @click="deleteIndividualTag(tag)"
+                                    class="text-red-600 hover:text-red-900"
+                                >
+                                    Delete
                                 </button>
                             </td>
                         </tr>
@@ -856,9 +862,15 @@
                             >
                                 <button
                                     @click="editCorrespondent(correspondent)"
-                                    class="text-blue-600 hover:text-blue-900"
+                                    class="text-blue-600 hover:text-blue-900 mr-3"
                                 >
                                     Edit
+                                </button>
+                                <button
+                                    @click="deleteIndividualCorrespondent(correspondent)"
+                                    class="text-red-600 hover:text-red-900"
+                                >
+                                    Delete
                                 </button>
                             </td>
                         </tr>
@@ -1613,7 +1625,7 @@
             bulkMergeCorrespondentTargetName: "",
             correspondentFilter: "",
             correspondentSortBy: "name",
-            correspondentMaxDocs: "1",
+            correspondentMaxDocs: "0",
             correspondentMergePrefix: "",
 
             // Correspondent pagination state
@@ -2133,6 +2145,86 @@
                 } finally {
                     this.operationInProgress = false;
                 }
+            },
+
+            deleteIndividualTag(tag) {
+                this.confirmTitle = "Delete Tag";
+                this.confirmMessage = `Are you sure you want to delete "${tag.name}"? This cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/tags/delete", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ tag_ids: [tag.id] }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Delete failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            await this.loadTags();
+                        } else {
+                            showToast("Delete failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Delete failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
+            },
+
+            deleteIndividualCorrespondent(correspondent) {
+                this.confirmTitle = "Delete Correspondent";
+                this.confirmMessage = `Are you sure you want to delete "${correspondent.name}"? This cannot be undone.`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/correspondents/delete", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                correspondent_ids: [correspondent.id],
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Delete failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            await this.loadCorrespondents();
+                        } else {
+                            showToast("Delete failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Delete failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
             },
 
             // Correspondent Methods
