@@ -177,15 +177,37 @@ class PaperlessClient:
         if not tag_ids:
             return
 
-        resp = await self.client.post(
-            "/api/bulk_edit_objects/",
-            json={
-                "objects": tag_ids,
-                "object_type": "tags",
-                "operation": "delete",
-            },
-        )
-        resp.raise_for_status()
+        # Try bulk delete first
+        try:
+            resp = await self.client.post(
+                "/api/bulk_edit_objects/",
+                json={
+                    "objects": tag_ids,
+                    "object_type": "tags",
+                    "operation": "delete",
+                },
+            )
+            resp.raise_for_status()
+            return
+        except httpx.HTTPStatusError as e:
+            # If bulk endpoint doesn't exist (404), fall back to individual deletes
+            if e.response.status_code == 404:
+                for tag_id in tag_ids:
+                    await self.delete_tag(tag_id)
+                return
+
+            # For other errors, try to get details
+            try:
+                error_detail = e.response.json()
+            except Exception:
+                error_detail = e.response.text
+            raise Exception(
+                f"Paperless API error (status {e.response.status_code}): {error_detail}"
+            )
+        except Exception as e:
+            if "bulk_delete_tags" not in str(e):
+                raise Exception(f"Failed to delete tags: {str(e)}")
+            raise
 
     async def create_tag(self, name: str, **kwargs) -> Tag:
         """Create a new tag."""
