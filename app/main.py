@@ -78,5 +78,6 @@ async def index(request: Request, settings: Settings = Depends(get_settings)):
             "version": version,
             "error": error,
             "app_version": __version__,
+            "exclude_patterns": ", ".join(settings.exclude_pattern_list),
         },
     )

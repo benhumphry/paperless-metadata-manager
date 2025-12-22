@@ -65,7 +65,26 @@ All configuration is via environment variables (set in `.env` file):
 | `PAPERLESS_API_TOKEN` | ✅ | - | API token for authentication |
 | `PORT` | ❌ | `8000` | Port for the web UI |
 | `LOG_LEVEL` | ❌ | `info` | Logging level (debug, info, warning, error) |
-| `EXCLUDE_PATTERNS` | ❌ | `new,inbox,todo,review` | Tags matching these patterns won't be suggested for deletion |
+| `EXCLUDE_PATTERNS` | ❌ | `new,inbox,todo,review` | Comma-separated list of tag patterns to exclude from cleanup suggestions. Supports regex patterns (e.g., `^important.*,^keep-.*`) |
+
+### Exclude Patterns
+
+The `EXCLUDE_PATTERNS` setting allows you to protect important tags from being suggested for deletion, even if they have few documents. This is useful for:
+- Workflow tags (new, inbox, todo, review)
+- Project tags you want to keep empty
+- Placeholder tags for future use
+
+**Examples:**
+```bash
+# Simple patterns (case-insensitive substring match)
+EXCLUDE_PATTERNS=new,inbox,todo,review
+
+# Regex patterns for more control
+EXCLUDE_PATTERNS=^important.*,^keep-.*,archived-\d+
+
+# Mixed patterns
+EXCLUDE_PATTERNS=new,inbox,^project-.*,review,^archive-
+```
 
 ## Usage
 
