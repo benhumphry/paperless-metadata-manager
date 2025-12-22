@@ -462,7 +462,7 @@
                     <input
                         type="text"
                         x-model="customMergeSearch"
-                        @input="searchItemsForCustomMerge()"
+                        @input.debounce.300ms="searchItemsForCustomMerge()"
                         placeholder="Search items to merge..."
                         class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                     />
@@ -1233,20 +1233,24 @@
                 this.showConfirm = true;
             },
 
-            searchItemsForCustomMerge() {
+            async searchItemsForCustomMerge() {
                 if (this.customMergeSearch.length < 2) {
                     this.customMergeSearchResults = [];
                     return;
                 }
 
-                const search = this.customMergeSearch.toLowerCase();
-                this.customMergeSearchResults = this.items
-                    .filter(
+                try {
+                    const url = `${this.apiEndpoint}?page=1&page_size=20&filter=${encodeURIComponent(this.customMergeSearch)}`;
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+                    this.customMergeSearchResults = data[this.itemKey].filter(
                         (item) =>
-                            item.name.toLowerCase().includes(search) &&
                             !this.customMergeSelectedItems.includes(item.id),
-                    )
-                    .slice(0, 20);
+                    );
+                } catch (e) {
+                    console.error("Failed to search items:", e);
+                    this.customMergeSearchResults = [];
+                }
             },
 
             getItemNameById(id) {
