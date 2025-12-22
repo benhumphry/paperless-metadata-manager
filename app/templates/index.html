@@ -91,14 +91,7 @@
                     placeholder="Filter by name..."
                     class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
                 />
-                <select
-                    x-model="sortBy"
-                    class="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                >
-                    <option value="name">Sort by Name</option>
-                    <option value="count">Sort by Count (Asc)</option>
-                    <option value="count-desc">Sort by Count (Desc)</option>
-                </select>
+
                 <select
                     x-model.number="pageSize"
                     @change="currentPage = 1; loadData()"
@@ -117,9 +110,16 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            @click="sortBy = sortBy === 'name' ? 'name-desc' : 'name'"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         >
                             Name
+                            <span x-show="sortBy === 'name'" class="ml-1"
+                                >↑</span
+                            >
+                            <span x-show="sortBy === 'name-desc'" class="ml-1"
+                                >↓</span
+                            >
                         </th>
                         <th
                             x-show="metadataType === 'tags'"
@@ -128,14 +128,28 @@
                             Color
                         </th>
                         <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            @click="sortBy = sortBy === 'count' ? 'count-desc' : 'count'"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         >
                             Documents
+                            <span x-show="sortBy === 'count'" class="ml-1"
+                                >↑</span
+                            >
+                            <span x-show="sortBy === 'count-desc'" class="ml-1"
+                                >↓</span
+                            >
                         </th>
                         <th
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            @click="sortBy = sortBy === 'match' ? 'match-desc' : 'match'"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         >
                             Match Type
+                            <span x-show="sortBy === 'match'" class="ml-1"
+                                >↑</span
+                            >
+                            <span x-show="sortBy === 'match-desc'" class="ml-1"
+                                >↓</span
+                            >
                         </th>
                         <th
                             class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -171,14 +185,8 @@
                             </td>
                             <td
                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
-                            >
-                                <span x-text="item.match_type"></span>
-                                <span
-                                    x-show="item.is_auto"
-                                    class="ml-1 text-xs text-blue-600"
-                                    >(auto)</span
-                                >
-                            </td>
+                                x-text="item.match_type"
+                            ></td>
                             <td
                                 class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"
                             >
@@ -935,10 +943,20 @@
                 // Sorting only - filtering is done server-side
                 if (this.sortBy === "name") {
                     result.sort((a, b) => a.name.localeCompare(b.name));
+                } else if (this.sortBy === "name-desc") {
+                    result.sort((a, b) => b.name.localeCompare(a.name));
                 } else if (this.sortBy === "count") {
                     result.sort((a, b) => a.document_count - b.document_count);
                 } else if (this.sortBy === "count-desc") {
                     result.sort((a, b) => b.document_count - a.document_count);
+                } else if (this.sortBy === "match") {
+                    result.sort((a, b) =>
+                        a.match_type.localeCompare(b.match_type),
+                    );
+                } else if (this.sortBy === "match-desc") {
+                    result.sort((a, b) =>
+                        b.match_type.localeCompare(a.match_type),
+                    );
                 }
 
                 return result;
