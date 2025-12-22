@@ -741,6 +741,7 @@ def find_low_usage_correspondents(
     correspondents: list[Correspondent],
     max_docs: int = 0,
     exclude_patterns: list[str] | None = None,
+    exclude_auto: bool = True,
 ) -> list[Correspondent]:
     """Find correspondents with document count <= max_docs, excluding specified patterns."""
     exclude_patterns = exclude_patterns or []
@@ -756,7 +757,7 @@ def find_low_usage_correspondents(
                 excluded = True
                 break
 
-        if correspondent.is_auto:
+        if exclude_auto and correspondent.is_auto:
             excluded = True
 
         if not excluded:
@@ -769,6 +770,7 @@ def find_low_usage_tags(
     tags: list[Tag],
     max_docs: int = 1,
     exclude_patterns: list[str] | None = None,
+    exclude_auto: bool = True,
 ) -> list[Tag]:
     """Find tags with document count <= max_docs, excluding specified patterns."""
     exclude_patterns = exclude_patterns or []
@@ -785,8 +787,8 @@ def find_low_usage_tags(
                 excluded = True
                 break
 
-        # Exclude auto-matching tags
-        if tag.is_auto:
+        # Exclude auto-matching tags if requested
+        if exclude_auto and tag.is_auto:
             excluded = True
 
         if not excluded:
@@ -867,6 +869,7 @@ def find_low_usage_document_types(
     document_types: list[DocumentType],
     max_docs: int = 0,
     exclude_patterns: list[str] | None = None,
+    exclude_auto: bool = True,
 ) -> list[DocumentType]:
     """Find document types with document count <= max_docs, excluding specified patterns."""
     exclude_patterns = exclude_patterns or []
@@ -882,7 +885,7 @@ def find_low_usage_document_types(
                 excluded = True
                 break
 
-        if document_type.is_auto:
+        if exclude_auto and document_type.is_auto:
             excluded = True
 
         if not excluded:

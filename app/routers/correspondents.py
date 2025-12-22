@@ -110,6 +110,7 @@ async def list_low_usage_correspondents(
     max_docs: int = 0,
     page: int = 1,
     page_size: int = 50,
+    exclude_auto: bool = True,
     settings: Settings = Depends(get_settings),
 ):
     """Get correspondents with low document counts (candidates for deletion, paginated)."""
@@ -122,6 +123,7 @@ async def list_low_usage_correspondents(
             all_correspondents,
             max_docs=max_docs,
             exclude_patterns=settings.exclude_pattern_list,
+            exclude_auto=exclude_auto,
         )
         sorted_correspondents = sorted(low_usage, key=lambda x: x.name.lower())
 

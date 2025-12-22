@@ -252,12 +252,23 @@
                     <span class="text-sm text-gray-700">documents</span>
                 </label>
 
+                <label class="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        x-model="excludeAuto"
+                        @change="cleanupCurrentPage = 1; loadCleanup()"
+                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span class="text-sm text-gray-700"
+                        >Exclude auto-match</span
+                    >
+                </label>
+
                 <span
                     x-show="metadataType === 'tags'"
                     class="text-sm text-gray-500"
                 >
-                    (excluding auto-match items and patterns: {{
-                    exclude_patterns }})
+                    (excluding patterns: {{ exclude_patterns }})
                 </span>
 
                 <select
@@ -855,6 +866,7 @@
             filter: "",
             sortBy: "name",
             maxDocs: "0",
+            excludeAuto: true,
             mergePrefix: "",
 
             // Merge selection state (unified)
@@ -990,7 +1002,7 @@
                 }
                 try {
                     const resp = await fetch(
-                        `${this.apiEndpoint}/low-usage?max_docs=${this.maxDocs}&page=${this.cleanupCurrentPage}&page_size=${this.cleanupPageSize}`,
+                        `${this.apiEndpoint}/low-usage?max_docs=${this.maxDocs}&page=${this.cleanupCurrentPage}&page_size=${this.cleanupPageSize}&exclude_auto=${this.excludeAuto}`,
                     );
                     const data = await resp.json();
                     this.cleanupItems = data[this.itemKey];

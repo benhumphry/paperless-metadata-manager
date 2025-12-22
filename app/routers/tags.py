@@ -124,6 +124,7 @@ async def list_low_usage_tags(
     max_docs: int = 1,
     page: int = 1,
     page_size: int = 50,
+    exclude_auto: bool = True,
     settings: Settings = Depends(get_settings),
 ):
     """Get tags with low document counts (candidates for deletion, paginated)."""
@@ -136,6 +137,7 @@ async def list_low_usage_tags(
             all_tags,
             max_docs=max_docs,
             exclude_patterns=settings.exclude_pattern_list,
+            exclude_auto=exclude_auto,
         )
         sorted_tags = sorted(low_usage, key=lambda x: x.name.lower())
 
