@@ -543,3 +543,38 @@ def group_tags_by_prefix(tags: list[Tag], min_prefix_length: int = 3) -> dict[st
         for k, v in groups.items()
         if len(v) > 1
     }
+
+
+def group_correspondents_by_prefix(
+    correspondents: list[Correspondent], min_prefix_length: int = 3
+) -> dict[str, list[Correspondent]]:
+    """Group correspondents by common prefixes for merge suggestions."""
+    from collections import defaultdict
+
+    groups: dict[str, list[Correspondent]] = defaultdict(list)
+
+    for correspondent in correspondents:
+        name_lower = correspondent.name.lower()
+
+        # Try to find the best prefix
+        # First, split by common separators
+        parts = re.split(r"[\s_\-]+", name_lower)
+        if len(parts) > 1:
+            prefix = parts[0]
+        else:
+            # Use first N characters as prefix
+            prefix = (
+                name_lower[:min_prefix_length]
+                if len(name_lower) >= min_prefix_length
+                else name_lower
+            )
+
+        if len(prefix) >= min_prefix_length:
+            groups[prefix].append(correspondent)
+
+    # Filter to groups with multiple correspondents
+    return {
+        k: sorted(v, key=lambda c: (-c.document_count, c.name.lower()))
+        for k, v in groups.items()
+        if len(v) > 1
+    }

@@ -19,7 +19,7 @@
                 :class="activeTab === 'cleanup' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
             >
-                Cleanup
+                Tag Cleanup
                 <span
                     class="ml-2 bg-yellow-100 text-yellow-600 py-0.5 px-2 rounded-full text-xs"
                     x-text="lowUsageTotalTags"
@@ -30,7 +30,7 @@
                 :class="activeTab === 'merge' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                 class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
             >
-                Merge
+                Tag Merge
                 <span
                     class="ml-2 bg-purple-100 text-purple-600 py-0.5 px-2 rounded-full text-xs"
                     x-text="Object.keys(mergeGroups).length"

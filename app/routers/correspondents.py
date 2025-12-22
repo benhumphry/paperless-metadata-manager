@@ -8,6 +8,7 @@ from app.paperless_client import (
     Correspondent,
     PaperlessClient,
     find_low_usage_correspondents,
+    group_correspondents_by_prefix,
 )
 
 router = APIRouter(prefix="/api/correspondents", tags=["correspondents"])
@@ -123,6 +124,40 @@ async def list_low_usage_correspondents(
             page_size=page_size,
             total_pages=total_pages,
         )
+
+
+@router.get("/merge-suggestions")
+async def get_merge_suggestions(
+    prefix: str | None = None,
+    min_prefix_length: int = 3,
+    settings: Settings = Depends(get_settings),
+):
+    """Get suggested correspondent groups for merging."""
+    async with PaperlessClient(
+        settings.paperless_base_url,
+        settings.paperless_api_token,
+    ) as client:
+        all_correspondents = await client.get_all_correspondents()
+
+        # Filter by prefix if specified
+        if prefix:
+            all_correspondents = [
+                c for c in all_correspondents if c.name.lower().startswith(prefix.lower())
+            ]
+
+        groups = group_correspondents_by_prefix(all_correspondents, min_prefix_length)
+
+        return {
+            "groups": {
+                prefix: {
+                    "correspondents": [correspondent_to_dict(c) for c in correspondents],
+                    "total_documents": sum(c.document_count for c in correspondents),
+                    "suggested_name": prefix.capitalize(),
+                }
+                for prefix, correspondents in sorted(groups.items())
+            },
+            "total_groups": len(groups),
+        }
 
 
 @router.post("/delete", response_model=OperationResponse)
