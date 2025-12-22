@@ -454,23 +454,112 @@
 
     <!-- Merge Tab -->
     <div x-show="activeTab === 'merge' && !loading && !isCustomField" x-cloak>
-        <!-- Custom Merge Section -->
+        <!-- Selected Items for Merge (always visible at top) -->
         <div class="mb-6 bg-white shadow rounded-lg p-4">
-            <h4 class="text-md font-medium text-gray-900 mb-3">Custom Merge</h4>
-            <div class="space-y-3">
-                <div class="flex items-center space-x-2">
-                    <input
-                        type="text"
-                        x-model="customMergeSearch"
-                        @input.debounce.300ms="searchItemsForCustomMerge()"
-                        placeholder="Search items to merge..."
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <span class="text-sm text-gray-500">
-                        <span x-text="customMergeSelectedItems.length"></span>
-                        selected
-                    </span>
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-md font-medium text-gray-900">
+                    Selected for Merge
+                    <span
+                        class="text-sm font-normal text-gray-500"
+                        x-text="`(${mergeSelectedItems.length} items)`"
+                    ></span>
+                </h4>
+                <button
+                    x-show="mergeSelectedItems.length > 0"
+                    @click="clearMergeSelection()"
+                    class="text-sm text-gray-500 hover:text-gray-700"
+                >
+                    Clear All
+                </button>
+            </div>
+
+            <!-- Selected Items Pills -->
+            <div x-show="mergeSelectedItems.length > 0" class="mb-4">
+                <div class="flex flex-wrap gap-2 max-h-48 overflow-y-auto">
+                    <template
+                        x-for="itemId in mergeSelectedItems"
+                        :key="itemId"
+                    >
+                        <span
+                            @click="toggleMergeItem(itemId)"
+                            class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all"
+                            :style="metadataType === 'tags' && getMergeItemColor(itemId)
+                                ? `background-color: ${getMergeItemColor(itemId)}20; color: ${getMergeItemColor(itemId)}; border: 1px solid ${getMergeItemColor(itemId)}`
+                                : 'background-color: #ddd6fe; color: #6d28d9; border: 1px solid #a78bfa'"
+                        >
+                            <span x-text="getMergeItemName(itemId)"></span>
+                            <span
+                                class="ml-1 opacity-75"
+                                x-text="`(${getMergeItemDocCount(itemId)})`"
+                            ></span>
+                            <span class="ml-1 hover:text-red-600">&times;</span>
+                        </span>
+                    </template>
                 </div>
+            </div>
+
+            <!-- Empty state -->
+            <div
+                x-show="mergeSelectedItems.length === 0"
+                class="text-sm text-gray-500 mb-4"
+            >
+                Click on suggestion groups below or use the custom search to
+                select items to merge.
+            </div>
+
+            <!-- Target name and merge button -->
+            <div class="flex items-center space-x-2">
+                <input
+                    type="text"
+                    x-model="mergeTargetName"
+                    placeholder="Target name for merged item..."
+                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                />
+                <button
+                    @click="performMerge()"
+                    :disabled="mergeSelectedItems.length < 2 || !mergeTargetName || operationInProgress"
+                    :class="(mergeSelectedItems.length < 2 || !mergeTargetName || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                    class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md text-sm"
+                >
+                    <svg
+                        x-show="operationInProgress"
+                        class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle
+                            class="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            stroke-width="4"
+                        ></circle>
+                        <path
+                            class="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                    </svg>
+                    Merge Selected
+                </button>
+            </div>
+        </div>
+
+        <!-- Custom Selection Search -->
+        <div class="mb-6 bg-white shadow rounded-lg p-4">
+            <h4 class="text-md font-medium text-gray-900 mb-3">
+                Custom Selection
+            </h4>
+            <div class="space-y-3">
+                <input
+                    type="text"
+                    x-model="customMergeSearch"
+                    @input.debounce.300ms="searchItemsForCustomMerge()"
+                    placeholder="Search items to add to merge selection..."
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                />
 
                 <!-- Search Results -->
                 <div
@@ -482,15 +571,28 @@
                         :key="item.id"
                     >
                         <div
-                            class="px-3 py-2 hover:bg-gray-100 flex items-center justify-between border-b last:border-b-0"
+                            @click="addItemToMergeSelection(item)"
+                            class="px-3 py-2 hover:bg-gray-100 flex items-center justify-between border-b last:border-b-0 cursor-pointer"
+                            :class="mergeSelectedItems.includes(item.id) ? 'bg-purple-50' : ''"
                         >
                             <div class="flex items-center space-x-2">
-                                <input
-                                    type="checkbox"
-                                    :value="item.id"
-                                    x-model="customMergeSelectedItems"
-                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
+                                <span
+                                    class="inline-block w-4 h-4 rounded"
+                                    :class="mergeSelectedItems.includes(item.id) ? 'bg-purple-600' : 'border border-gray-300'"
+                                >
+                                    <svg
+                                        x-show="mergeSelectedItems.includes(item.id)"
+                                        class="w-4 h-4 text-white"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
+                                    >
+                                        <path
+                                            fill-rule="evenodd"
+                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                            clip-rule="evenodd"
+                                        />
+                                    </svg>
+                                </span>
                                 <span class="text-sm" x-text="item.name"></span>
                                 <span
                                     class="text-xs text-gray-500"
@@ -500,62 +602,21 @@
                         </div>
                     </template>
                 </div>
-
-                <!-- Selected Items Display -->
-                <div
-                    x-show="customMergeSelectedItems.length > 0"
-                    class="border-t pt-3"
-                >
-                    <div class="flex flex-wrap gap-2 mb-3">
-                        <template
-                            x-for="itemId in customMergeSelectedItems"
-                            :key="itemId"
-                        >
-                            <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                                <span x-text="getItemNameById(itemId)"></span>
-                                <button
-                                    @click="customMergeSelectedItems = customMergeSelectedItems.filter(id => id !== itemId)"
-                                    class="ml-1 text-blue-600 hover:text-blue-800"
-                                >
-                                    &times;
-                                </button>
-                            </span>
-                        </template>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <input
-                            type="text"
-                            x-model="customMergeTargetName"
-                            placeholder="Target name for merged item..."
-                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <button
-                            @click="performCustomMerge()"
-                            :disabled="customMergeSelectedItems.length < 2 || !customMergeTargetName || operationInProgress"
-                            :class="(customMergeSelectedItems.length < 2 || !customMergeTargetName || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
-                            class="px-4 py-2 bg-purple-600 text-white rounded-md text-sm"
-                        >
-                            Merge Selected
-                        </button>
-                    </div>
-                </div>
             </div>
         </div>
 
-        <!-- Prefix Filter -->
+        <!-- Prefix Filter for Suggestions -->
         <div class="mb-4 flex items-center space-x-4">
             <input
                 type="text"
                 x-model="mergePrefix"
                 @keyup.enter="loadMergeSuggestions()"
-                placeholder="Filter by prefix (e.g., 'account')..."
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Filter suggestions by prefix (e.g., 'account')..."
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
             />
             <button
                 @click="loadMergeSuggestions()"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
+                class="px-4 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700"
             >
                 Find Suggestions
             </button>
@@ -568,137 +629,55 @@
             </span>
         </div>
 
-        <!-- Bulk Merge Toolbar -->
-        <div
-            x-show="Object.keys(mergeGroups).length > 0"
-            class="mb-4 bg-white shadow rounded-lg p-4"
-        >
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <label class="inline-flex items-center">
-                        <input
-                            type="checkbox"
-                            @change="selectedGroups = $event.target.checked ? Object.keys(mergeGroups) : []"
-                            :checked="selectedGroups.length === Object.keys(mergeGroups).length && Object.keys(mergeGroups).length > 0"
-                            class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span class="ml-2 text-sm text-gray-700"
-                            >Select All Groups</span
-                        >
-                    </label>
-                    <span class="text-sm text-gray-500">
-                        <span x-text="selectedGroups.length"></span> of
-                        <span x-text="Object.keys(mergeGroups).length"></span>
-                        groups selected
-                    </span>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <input
-                        type="text"
-                        x-model="bulkMergeTargetName"
-                        placeholder="Target name (optional)"
-                        :disabled="selectedGroups.length === 0"
-                        class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
-                    />
-                    <button
-                        @click="bulkMergeGroups()"
-                        :disabled="selectedGroups.length === 0 || operationInProgress"
-                        :class="(selectedGroups.length === 0 || operationInProgress) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
-                        class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md text-sm"
-                    >
-                        <svg
-                            x-show="operationInProgress"
-                            class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                        >
-                            <circle
-                                class="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                stroke-width="4"
-                            ></circle>
-                            <path
-                                class="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                        </svg>
-                        Merge Selected Groups
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- Progress Bar -->
         <div
             x-show="operationInProgress"
             class="mb-4 bg-white shadow rounded-lg p-4"
         >
             <div class="flex items-center justify-between mb-2">
-                <span class="text-sm text-gray-600"
-                    >Processing... <span x-text="operationProgress"></span> /
-                    <span x-text="operationTotal"></span
-                ></span>
-                <span
-                    class="text-sm text-gray-600"
-                    x-text="operationTotal > 0 ? Math.round((operationProgress / operationTotal) * 100) + '%' : ''"
-                ></span>
+                <span class="text-sm text-gray-600">Processing...</span>
             </div>
             <div class="w-full bg-gray-200 rounded-full h-2">
                 <div
-                    class="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                    :style="`width: ${operationTotal > 0 ? (operationProgress / operationTotal) * 100 : 0}%`"
+                    class="bg-purple-600 h-2 rounded-full animate-pulse"
+                    style="width: 100%"
                 ></div>
             </div>
         </div>
 
-        <!-- Merge Groups -->
+        <!-- Merge Suggestion Groups -->
         <div class="space-y-4">
             <template x-for="(group, prefix) in mergeGroups" :key="prefix">
-                <div class="bg-white shadow rounded-lg p-4">
+                <div
+                    @click="selectGroupForMerge(prefix, group, $event)"
+                    class="bg-white shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-purple-300 transition-all"
+                    :class="isGroupSelected(prefix) ? 'ring-2 ring-purple-500' : ''"
+                >
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center space-x-3">
-                            <input
-                                type="checkbox"
-                                :value="prefix"
-                                x-model="selectedGroups"
-                                class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                            />
                             <h4 class="text-lg font-medium text-gray-900">
                                 "<span x-text="prefix"></span>..."
                             </h4>
                             <span
                                 class="text-sm text-gray-500"
-                                x-text="`${group.selected_items?.length || group[itemKey].length} of ${group[itemKey].length} items selected, ${group.total_documents} total docs`"
+                                x-text="`${group[itemKey].length} items, ${group.total_documents} total docs`"
                             ></span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <input
-                                type="text"
-                                :placeholder="group.suggested_name"
-                                x-model="group.target_name"
-                                class="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
-                            />
-                            <button
-                                @click="mergeGroup(prefix, group)"
-                                :disabled="operationInProgress || (group.selected_items?.length || 0) < 2"
-                                :class="(operationInProgress || (group.selected_items?.length || 0) < 2) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
-                                class="px-3 py-1.5 bg-purple-600 text-white rounded-md text-sm"
+                            <span
+                                x-show="isGroupSelected(prefix)"
+                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800"
                             >
-                                Merge
-                            </button>
+                                Selected
+                            </span>
                         </div>
+                        <span class="text-sm text-purple-600"
+                            >Click to add all items</span
+                        >
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <template x-for="item in group[itemKey]" :key="item.id">
                             <span
-                                @click="toggleItemInGroup(group, item.id)"
-                                class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all"
-                                :class="group.selected_items?.includes(item.id) ? '' : 'opacity-40 line-through'"
+                                class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+                                :class="mergeSelectedItems.includes(item.id) ? 'ring-2 ring-purple-400' : ''"
                                 :style="metadataType === 'tags'
                                     ? `background-color: ${item.color}20; color: ${item.color}; border: 1px solid ${item.color}`
                                     : 'background-color: #e5e7eb; color: #374151; border: 1px solid #d1d5db'"
@@ -720,7 +699,8 @@
             x-show="Object.keys(mergeGroups).length === 0"
             class="text-center py-8 text-gray-500"
         >
-            No merge suggestions found. Try adjusting the prefix filter.
+            No merge suggestions found. Try adjusting the prefix filter or use
+            the custom search above.
         </div>
     </div>
 
@@ -912,13 +892,12 @@
             maxDocs: "0",
             mergePrefix: "",
 
-            // Custom merge state
+            // Merge selection state (unified)
+            mergeSelectedItems: [],
+            mergeItemCache: {}, // Cache item details (name, color, doc_count) by id
+            mergeTargetName: "",
             customMergeSearch: "",
             customMergeSearchResults: [],
-            customMergeSelectedItems: [],
-            customMergeItemNames: {},
-            customMergeTargetName: "",
-            bulkMergeTargetName: "",
 
             // Pagination state (All tab)
             currentPage: 1,
@@ -1016,17 +995,16 @@
                 this.cleanupItems = [];
                 this.mergeGroups = {};
                 this.selectedItems = [];
-                this.selectedGroups = [];
                 this.currentPage = 1;
                 this.cleanupCurrentPage = 1;
                 this.totalItems = 0;
                 this.totalCleanupItems = 0;
                 this.filter = "";
+                this.mergeSelectedItems = [];
+                this.mergeItemCache = {};
+                this.mergeTargetName = "";
                 this.customMergeSearch = "";
                 this.customMergeSearchResults = [];
-                this.customMergeSelectedItems = [];
-                this.customMergeItemNames = {};
-                this.customMergeTargetName = "";
                 this.loadData();
             },
 
@@ -1082,7 +1060,6 @@
                 if (this.isCustomField || !this.apiEndpoint) return;
 
                 this.loading = true;
-                this.selectedGroups = [];
                 try {
                     let url = `${this.apiEndpoint}/merge-suggestions`;
                     if (this.mergePrefix) {
@@ -1090,15 +1067,19 @@
                     }
                     const resp = await fetch(url);
                     const data = await resp.json();
-                    // Initialize selected_items for each group
-                    const groups = data.groups;
-                    for (const prefix in groups) {
-                        const group = groups[prefix];
-                        group.selected_items = group[this.itemKey].map(
-                            (item) => item.id,
-                        );
+                    this.mergeGroups = data.groups;
+
+                    // Cache all items from groups for display
+                    for (const prefix in this.mergeGroups) {
+                        const group = this.mergeGroups[prefix];
+                        for (const item of group[this.itemKey]) {
+                            this.mergeItemCache[item.id] = {
+                                name: item.name,
+                                color: item.color,
+                                document_count: item.document_count,
+                            };
+                        }
                     }
-                    this.mergeGroups = groups;
                 } catch (e) {
                     showToast(
                         "Failed to load suggestions: " + e.message,
@@ -1240,6 +1221,81 @@
                 this.showConfirm = true;
             },
 
+            // Merge selection helper methods
+            getMergeItemName(id) {
+                return this.mergeItemCache[id]?.name || `ID: ${id}`;
+            },
+
+            getMergeItemColor(id) {
+                return this.mergeItemCache[id]?.color || null;
+            },
+
+            getMergeItemDocCount(id) {
+                return this.mergeItemCache[id]?.document_count ?? 0;
+            },
+
+            toggleMergeItem(itemId) {
+                const index = this.mergeSelectedItems.indexOf(itemId);
+                if (index > -1) {
+                    this.mergeSelectedItems.splice(index, 1);
+                } else {
+                    this.mergeSelectedItems.push(itemId);
+                }
+            },
+
+            clearMergeSelection() {
+                this.mergeSelectedItems = [];
+                this.mergeTargetName = "";
+            },
+
+            addItemToMergeSelection(item) {
+                // Cache item details
+                this.mergeItemCache[item.id] = {
+                    name: item.name,
+                    color: item.color,
+                    document_count: item.document_count,
+                };
+
+                // Toggle selection
+                const index = this.mergeSelectedItems.indexOf(item.id);
+                if (index > -1) {
+                    this.mergeSelectedItems.splice(index, 1);
+                } else {
+                    this.mergeSelectedItems.push(item.id);
+                }
+            },
+
+            selectGroupForMerge(prefix, group, event) {
+                // Add all items from this group to selection
+                for (const item of group[this.itemKey]) {
+                    // Cache item details
+                    this.mergeItemCache[item.id] = {
+                        name: item.name,
+                        color: item.color,
+                        document_count: item.document_count,
+                    };
+
+                    // Add to selection if not already there
+                    if (!this.mergeSelectedItems.includes(item.id)) {
+                        this.mergeSelectedItems.push(item.id);
+                    }
+                }
+
+                // Auto-suggest target name from group
+                if (!this.mergeTargetName) {
+                    this.mergeTargetName = group.suggested_name || prefix;
+                }
+            },
+
+            isGroupSelected(prefix) {
+                const group = this.mergeGroups[prefix];
+                if (!group) return false;
+                // A group is "selected" if all its items are in the selection
+                return group[this.itemKey].every((item) =>
+                    this.mergeSelectedItems.includes(item.id),
+                );
+            },
+
             async searchItemsForCustomMerge() {
                 if (this.customMergeSearch.length < 2) {
                     this.customMergeSearchResults = [];
@@ -1250,35 +1306,26 @@
                     const url = `${this.apiEndpoint}?page=1&page_size=20&filter=${encodeURIComponent(this.customMergeSearch)}`;
                     const resp = await fetch(url);
                     const data = await resp.json();
-                    const results = data[this.itemKey].filter(
-                        (item) =>
-                            !this.customMergeSelectedItems.includes(item.id),
-                    );
-                    // Cache item names for display
-                    results.forEach((item) => {
-                        this.customMergeItemNames[item.id] = item.name;
-                    });
-                    this.customMergeSearchResults = results;
+                    this.customMergeSearchResults = data[this.itemKey];
+
+                    // Cache item details for display
+                    for (const item of this.customMergeSearchResults) {
+                        this.mergeItemCache[item.id] = {
+                            name: item.name,
+                            color: item.color,
+                            document_count: item.document_count,
+                        };
+                    }
                 } catch (e) {
                     console.error("Failed to search items:", e);
                     this.customMergeSearchResults = [];
                 }
             },
 
-            getItemNameById(id) {
-                // Check cache first (populated from search results)
-                if (this.customMergeItemNames[id]) {
-                    return this.customMergeItemNames[id];
-                }
-                // Fallback to current page items
-                const item = this.items.find((i) => i.id === id);
-                return item ? item.name : `ID: ${id}`;
-            },
-
-            performCustomMerge() {
+            performMerge() {
                 if (
-                    this.customMergeSelectedItems.length < 2 ||
-                    !this.customMergeTargetName
+                    this.mergeSelectedItems.length < 2 ||
+                    !this.mergeTargetName
                 ) {
                     showToast(
                         "Select at least 2 items and provide a target name",
@@ -1287,10 +1334,10 @@
                     return;
                 }
 
-                const itemCount = this.customMergeSelectedItems.length;
-                const targetName = this.customMergeTargetName;
-                const itemNames = this.customMergeSelectedItems
-                    .map((id) => this.getItemNameById(id))
+                const itemCount = this.mergeSelectedItems.length;
+                const targetName = this.mergeTargetName;
+                const itemNames = this.mergeSelectedItems
+                    .map((id) => this.getMergeItemName(id))
                     .join(", ");
 
                 this.confirmTitle = `Merge ${itemCount} items?`;
@@ -1302,8 +1349,8 @@
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
-                                source_ids: this.customMergeSelectedItems,
-                                target_name: this.customMergeTargetName,
+                                source_ids: this.mergeSelectedItems,
+                                target_name: this.mergeTargetName,
                             }),
                         });
 
@@ -1315,150 +1362,15 @@
                         const result = await resp.json();
                         showToast(result.message, "success");
 
-                        this.customMergeSelectedItems = [];
-                        this.customMergeTargetName = "";
+                        // Clear selection and reload
+                        this.mergeSelectedItems = [];
+                        this.mergeTargetName = "";
                         this.customMergeSearch = "";
                         this.customMergeSearchResults = [];
                         this.loadData();
                         this.loadMergeSuggestions();
                     } catch (e) {
                         showToast("Failed to merge: " + e.message, "error");
-                    }
-                    this.operationInProgress = false;
-                };
-                this.showConfirm = true;
-            },
-
-            toggleItemInGroup(group, itemId) {
-                if (!group.selected_items) {
-                    group.selected_items = group[this.itemKey].map((i) => i.id);
-                }
-                const index = group.selected_items.indexOf(itemId);
-                if (index > -1) {
-                    group.selected_items.splice(index, 1);
-                } else {
-                    group.selected_items.push(itemId);
-                }
-            },
-
-            mergeGroup(prefix, group) {
-                const targetName =
-                    group.target_name || group.suggested_name || prefix;
-                const sourceIds =
-                    group.selected_items ||
-                    group[this.itemKey].map((item) => item.id);
-
-                if (sourceIds.length < 2) {
-                    showToast("Select at least 2 items to merge", "error");
-                    return;
-                }
-
-                const itemNames = group[this.itemKey]
-                    .filter((item) => sourceIds.includes(item.id))
-                    .map((item) => item.name)
-                    .join(", ");
-
-                this.confirmTitle = `Merge ${sourceIds.length} items?`;
-                this.confirmMessage = `This will merge the following into "${targetName}":\n\n${itemNames}\n\nThis action cannot be undone.`;
-                this.confirmAction = async () => {
-                    this.operationInProgress = true;
-                    try {
-                        const resp = await fetch(`${this.apiEndpoint}/merge`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                source_ids: sourceIds,
-                                target_name: targetName,
-                            }),
-                        });
-
-                        if (!resp.ok) {
-                            const err = await resp.json();
-                            throw new Error(err.detail || "Merge failed");
-                        }
-
-                        const result = await resp.json();
-                        showToast(result.message, "success");
-
-                        delete this.mergeGroups[prefix];
-                        this.loadData();
-                    } catch (e) {
-                        showToast("Failed to merge: " + e.message, "error");
-                    }
-                    this.operationInProgress = false;
-                };
-                this.showConfirm = true;
-            },
-
-            bulkMergeGroups() {
-                if (this.selectedGroups.length === 0) return;
-                if (!this.bulkMergeTargetName) {
-                    showToast(
-                        "Please enter a target name for the merged items",
-                        "error",
-                    );
-                    return;
-                }
-
-                // Collect ALL selected items from ALL selected groups
-                const allSourceIds = [];
-                const allItemNames = [];
-                for (const prefix of this.selectedGroups) {
-                    const group = this.mergeGroups[prefix];
-                    if (group) {
-                        const sourceIds =
-                            group.selected_items ||
-                            group[this.itemKey].map((i) => i.id);
-                        const items = group[this.itemKey].filter((item) =>
-                            sourceIds.includes(item.id),
-                        );
-                        for (const item of items) {
-                            if (!allSourceIds.includes(item.id)) {
-                                allSourceIds.push(item.id);
-                                allItemNames.push(item.name);
-                            }
-                        }
-                    }
-                }
-
-                if (allSourceIds.length < 2) {
-                    showToast("Need at least 2 items to merge", "error");
-                    return;
-                }
-
-                this.confirmTitle = `Merge ${allSourceIds.length} items into "${this.bulkMergeTargetName}"?`;
-                this.confirmMessage = `This will merge the following into "${this.bulkMergeTargetName}":\n\n${allItemNames.join(", ")}\n\nThis action cannot be undone.`;
-                this.confirmAction = async () => {
-                    this.operationInProgress = true;
-
-                    try {
-                        const resp = await fetch(`${this.apiEndpoint}/merge`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                source_ids: allSourceIds,
-                                target_name: this.bulkMergeTargetName,
-                            }),
-                        });
-
-                        if (!resp.ok) {
-                            const err = await resp.json();
-                            throw new Error(err.detail || "Merge failed");
-                        }
-
-                        const result = await resp.json();
-                        showToast(result.message, "success");
-
-                        // Remove merged groups from display
-                        for (const prefix of this.selectedGroups) {
-                            delete this.mergeGroups[prefix];
-                        }
-                        this.selectedGroups = [];
-                        this.bulkMergeTargetName = "";
-                        this.loadData();
-                        this.loadMergeSuggestions();
-                    } catch (e) {
-                        showToast("Merge error: " + e.message, "error");
                     }
                     this.operationInProgress = false;
                 };
