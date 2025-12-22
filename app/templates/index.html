@@ -461,21 +461,73 @@
             </button>
         </div>
 
+        <!-- Bulk Merge Toolbar -->
+        <div
+            x-show="Object.keys(mergeGroups).length > 0"
+            class="mb-4 bg-white shadow rounded-lg p-4"
+        >
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <label class="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            @change="selectedGroups = $event.target.checked ? Object.keys(mergeGroups) : []"
+                            :checked="selectedGroups.length === Object.keys(mergeGroups).length && Object.keys(mergeGroups).length > 0"
+                            class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span class="ml-2 text-sm text-gray-700"
+                            >Select All Groups</span
+                        >
+                    </label>
+                    <span class="text-sm text-gray-500">
+                        <span x-text="selectedGroups.length"></span> of
+                        <span x-text="Object.keys(mergeGroups).length"></span>
+                        groups selected
+                    </span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <input
+                        type="text"
+                        x-model="bulkMergeTargetName"
+                        placeholder="Target tag name (e.g., 'Employment')"
+                        :disabled="selectedGroups.length === 0"
+                        class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500"
+                    />
+                    <button
+                        @click="bulkMergeGroups()"
+                        :disabled="selectedGroups.length === 0 || !bulkMergeTargetName"
+                        :class="(selectedGroups.length === 0 || !bulkMergeTargetName) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700'"
+                        class="px-4 py-2 bg-purple-600 text-white rounded-md text-sm"
+                    >
+                        Merge Selected Groups
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="space-y-4">
             <template x-for="(group, prefix) in mergeGroups" :key="prefix">
                 <div class="bg-white shadow rounded-lg overflow-hidden">
                     <div
                         class="px-4 py-3 bg-purple-50 border-b flex items-center justify-between"
                     >
-                        <div>
-                            <span
-                                class="font-medium text-purple-900"
-                                x-text="prefix + '*'"
-                            ></span>
-                            <span
-                                class="ml-2 text-sm text-purple-600"
-                                x-text="group.tags.length + ' tags, ' + group.total_documents + ' documents'"
-                            ></span>
+                        <div class="flex items-center space-x-3">
+                            <input
+                                type="checkbox"
+                                :value="prefix"
+                                x-model="selectedGroups"
+                                class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                            />
+                            <div>
+                                <span
+                                    class="font-medium text-purple-900"
+                                    x-text="prefix + '*'"
+                                ></span>
+                                <span
+                                    class="ml-2 text-sm text-purple-600"
+                                    x-text="group.tags.length + ' tags, ' + group.total_documents + ' documents'"
+                                ></span>
+                            </div>
                         </div>
                         <div class="flex items-center space-x-2">
                             <input
@@ -679,6 +731,8 @@
             lowUsageTags: [],
             mergeGroups: {},
             selectedTags: [],
+            selectedGroups: [],
+            bulkMergeTargetName: "",
             filter: "",
             sortBy: "name",
             maxDocs: "1",
@@ -958,6 +1012,78 @@
                 // Clear search
                 group.searchQuery = "";
                 group.searchResults = [];
+            },
+
+            bulkMergeGroups() {
+                if (this.selectedGroups.length === 0) {
+                    showToast("Please select at least one group", "error");
+                    return;
+                }
+
+                if (!this.bulkMergeTargetName) {
+                    showToast("Please enter a target tag name", "error");
+                    return;
+                }
+
+                // Collect all tags from selected groups
+                const allTagIds = [];
+                let totalDocs = 0;
+
+                for (const prefix of this.selectedGroups) {
+                    const group = this.mergeGroups[prefix];
+                    if (group && group.selected_tags) {
+                        allTagIds.push(...group.selected_tags);
+                        totalDocs += group.total_documents;
+                    }
+                }
+
+                if (allTagIds.length === 0) {
+                    showToast("No tags selected in the chosen groups", "error");
+                    return;
+                }
+
+                this.confirmTitle = "Bulk Merge Groups";
+                this.confirmMessage = `Merge ${allTagIds.length} tag(s) from ${this.selectedGroups.length} group(s) into "${this.bulkMergeTargetName}"?`;
+                this.confirmAction = async () => {
+                    this.operationInProgress = true;
+                    try {
+                        const resp = await fetch("/api/tags/merge", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                source_ids: allTagIds,
+                                target_name: this.bulkMergeTargetName,
+                            }),
+                        });
+
+                        if (!resp.ok) {
+                            const errorData = await resp
+                                .json()
+                                .catch(() => ({ detail: "Unknown error" }));
+                            showToast(
+                                `Merge failed: ${errorData.detail || resp.statusText}`,
+                                "error",
+                            );
+                            return;
+                        }
+
+                        const data = await resp.json();
+
+                        if (data.success) {
+                            showToast(data.message, "success");
+                            this.selectedGroups = [];
+                            this.bulkMergeTargetName = "";
+                            await this.loadMergeSuggestions();
+                        } else {
+                            showToast("Merge failed", "error");
+                        }
+                    } catch (e) {
+                        showToast("Merge failed: " + e.message, "error");
+                    } finally {
+                        this.operationInProgress = false;
+                    }
+                };
+                this.showConfirm = true;
             },
 
             mergeTags(prefix, group) {
