@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from app import __version__
 from app.config import Settings, get_settings
 from app.paperless_client import PaperlessClient
-from app.routers import health, tags
+from app.routers import correspondents, health, tags
 
 # Configure logging
 logging.basicConfig(
@@ -45,6 +45,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Include routers
 app.include_router(health.router)
 app.include_router(tags.router)
+app.include_router(correspondents.router)
 
 # Templates
 templates = Jinja2Templates(directory="app/templates")
