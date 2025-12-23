@@ -11,6 +11,7 @@ from app.paperless_client import (
     Tag,
     find_low_usage_tags,
     group_tags_by_prefix,
+    group_tags_hybrid,
 )
 
 router = APIRouter(prefix="/api/tags", tags=["tags"])
@@ -162,9 +163,18 @@ async def list_low_usage_tags(
 async def get_merge_suggestions(
     prefix: str | None = None,
     min_prefix_length: int = 3,
+    similarity_threshold: float = 0.6,
+    enable_semantic: bool = True,
     settings: Settings = Depends(get_settings),
 ):
-    """Get suggested tag groups for merging."""
+    """Get suggested tag groups for merging.
+
+    Args:
+        prefix: Optional prefix filter to narrow results
+        min_prefix_length: Minimum prefix length for prefix-based grouping (default: 3)
+        similarity_threshold: Minimum similarity score for semantic grouping (default: 0.6)
+        enable_semantic: Whether to enable semantic grouping (default: True)
+    """
     async with PaperlessClient(
         settings.paperless_base_url,
         settings.paperless_api_token,
@@ -175,19 +185,47 @@ async def get_merge_suggestions(
         if prefix:
             all_tags = [t for t in all_tags if t.name.lower().startswith(prefix.lower())]
 
-        groups = group_tags_by_prefix(all_tags, min_prefix_length)
+        # Use hybrid grouping that combines prefix and semantic matching
+        groups = group_tags_hybrid(
+            all_tags,
+            min_prefix_length=min_prefix_length,
+            similarity_threshold=similarity_threshold,
+            enable_semantic=enable_semantic,
+        )
 
         return {
             "groups": {
-                prefix: {
+                group_key: {
                     "tags": [tag_to_dict(t) for t in tags],
                     "total_documents": sum(t.document_count for t in tags),
-                    "suggested_name": prefix.capitalize(),
+                    "suggested_name": _get_suggested_name(group_key, tags),
+                    "group_type": "semantic" if group_key.startswith("semantic:") else "prefix",
                 }
-                for prefix, tags in sorted(groups.items())
+                for group_key, tags in sorted(groups.items())
             },
             "total_groups": len(groups),
         }
+
+
+def _get_suggested_name(group_key: str, tags: list[Tag]) -> str:
+    """Generate a suggested merge name based on group type and tags.
+
+    Args:
+        group_key: The group key (e.g., 'prefix:account' or 'semantic:expense')
+        tags: List of tags in the group
+
+    Returns:
+        Suggested name for merging these tags
+    """
+    if group_key.startswith("prefix:"):
+        # For prefix groups, capitalize the prefix
+        return group_key.replace("prefix:", "").capitalize()
+    elif group_key.startswith("semantic:"):
+        # For semantic groups, use the representative word capitalized
+        return group_key.replace("semantic:", "").capitalize()
+    else:
+        # Fallback: use most common tag name
+        return max(tags, key=lambda t: t.document_count).name if tags else group_key
 
 
 @router.patch("/{tag_id}", response_model=OperationResponse)
