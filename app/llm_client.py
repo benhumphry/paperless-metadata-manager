@@ -217,8 +217,13 @@ JSON response (group name -> array of exact item names):"""
             result = {}
             for key, value in groups.items():
                 if isinstance(value, list) and len(value) >= 2:
-                    # Ensure all items are strings
-                    items = [str(item) for item in value if item]
+                    # Ensure all items are strings and deduplicate
+                    seen = set()
+                    items = []
+                    for item in value:
+                        if item and str(item) not in seen:
+                            seen.add(str(item))
+                            items.append(str(item))
                     if len(items) >= 2:
                         result[str(key)] = items
 
