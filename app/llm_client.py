@@ -100,6 +100,12 @@ JSON response (group name -> array of exact item names):"""
 
     async def _call_openai(self, client: httpx.AsyncClient, prompt: str) -> dict[str, list[str]]:
         """Call OpenAI API."""
+        import time
+
+        logger.info(
+            f"OpenAI request to {self.api_url}: model={self.model}, prompt_length={len(prompt)} chars"
+        )
+        start_time = time.time()
         response = await client.post(
             f"{self.api_url}/chat/completions",
             headers={
@@ -111,6 +117,8 @@ JSON response (group name -> array of exact item names):"""
                 "messages": [{"role": "user", "content": prompt}],
             },
         )
+        elapsed = time.time() - start_time
+        logger.info(f"OpenAI response received in {elapsed:.1f}s")
         if response.status_code != 200:
             logger.error(f"OpenAI error: {response.status_code} - {response.text}")
         response.raise_for_status()
