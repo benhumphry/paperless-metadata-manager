@@ -1,6 +1,6 @@
 [project]
 name = "paperless-tag-manager"
-version = "0.2.1"
+version = "0.2.1.1"
 description = "Bulk tag management for Paperless-ngx"
 readme = "README.md"
 license = { text = "MIT" }
