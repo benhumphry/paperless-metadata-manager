@@ -1,16 +1,23 @@
 {% extends "base.html" %} {% block header_center %}
-<div class="flex items-center space-x-2">
-    <label class="text-sm font-medium text-gray-700 dark:text-gray-300"
-        >Metadata:</label
+<div id="metadataTypeButtons" class="flex items-center">
+    <button
+        data-type="tags"
+        class="px-3 py-1 text-sm font-medium rounded-l-md border border-gray-300 dark:border-gray-600 bg-blue-500 text-white"
     >
-    <select
-        id="metadataTypeSelect"
-        class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+        Tags
+    </button>
+    <button
+        data-type="correspondents"
+        class="px-3 py-1 text-sm font-medium border-t border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
     >
-        <option value="tags">Tags</option>
-        <option value="correspondents">Correspondents</option>
-        <option value="document_types">Document Types</option>
-    </select>
+        Correspondents
+    </button>
+    <button
+        data-type="document_types"
+        class="px-3 py-1 text-sm font-medium rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+    >
+        Document Types
+    </button>
 </div>
 {% endblock %} {% block content %}
 <div x-data="metadataManager()" x-init="init()">
@@ -1159,19 +1166,43 @@
 
             // Methods
             async init() {
-                // Connect header metadata selector to this component
-                const headerSelect =
-                    document.getElementById("metadataTypeSelect");
-                if (headerSelect) {
-                    headerSelect.value = this.metadataType;
-                    headerSelect.addEventListener("change", (e) => {
-                        this.metadataType = e.target.value;
-                        this.onMetadataTypeChange();
+                // Connect header metadata type buttons to this component
+                const buttonContainer = document.getElementById(
+                    "metadataTypeButtons",
+                );
+                if (buttonContainer) {
+                    const buttons = buttonContainer.querySelectorAll("button");
+                    const activeClass = "bg-blue-500 text-white";
+                    const inactiveClass =
+                        "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600";
+
+                    const updateButtonStyles = (activeType) => {
+                        buttons.forEach((btn) => {
+                            const isActive = btn.dataset.type === activeType;
+                            // Remove both class sets first
+                            activeClass
+                                .split(" ")
+                                .forEach((c) => btn.classList.remove(c));
+                            inactiveClass
+                                .split(" ")
+                                .forEach((c) => btn.classList.remove(c));
+                            // Add appropriate classes
+                            (isActive ? activeClass : inactiveClass)
+                                .split(" ")
+                                .forEach((c) => btn.classList.add(c));
+                        });
+                    };
+
+                    buttons.forEach((btn) => {
+                        btn.addEventListener("click", () => {
+                            this.metadataType = btn.dataset.type;
+                            updateButtonStyles(this.metadataType);
+                            this.onMetadataTypeChange();
+                        });
                     });
-                    // Keep header select in sync if metadataType changes internally
-                    this.$watch("metadataType", (value) => {
-                        headerSelect.value = value;
-                    });
+
+                    // Keep buttons in sync if metadataType changes internally
+                    this.$watch("metadataType", updateButtonStyles);
                 }
                 await this.loadData();
             },
