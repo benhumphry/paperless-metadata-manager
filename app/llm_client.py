@@ -52,13 +52,20 @@ class LLMClient:
 
         prompt = self._build_prompt(item_names, item_type)
 
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            if self.llm_type == "openai":
-                return await self._call_openai(client, prompt)
-            elif self.llm_type == "anthropic":
-                return await self._call_anthropic(client, prompt)
-            elif self.llm_type == "ollama":
-                return await self._call_ollama(client, prompt)
+        try:
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                if self.llm_type == "openai":
+                    return await self._call_openai(client, prompt)
+                elif self.llm_type == "anthropic":
+                    return await self._call_anthropic(client, prompt)
+                elif self.llm_type == "ollama":
+                    return await self._call_ollama(client, prompt)
+        except httpx.TimeoutException as e:
+            logger.error(f"LLM request timed out after 600s: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"LLM request failed: {type(e).__name__}: {e}")
+            raise
 
         return {}
 
