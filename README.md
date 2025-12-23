@@ -16,8 +16,9 @@ A web-based tool for bulk metadata management in [Paperless-ngx](https://github.
 - **📊 Metadata Overview**: View all tags, correspondents, and document types with document counts
 - **🧹 Cleanup**: Identify and bulk-delete items with zero or few documents
 - **🔀 Smart Merge**: Auto-suggest similar items for merging based on:
-  - **Prefix matching** (.*) - Groups items starting with the same word (e.g., "account-personal", "account-business")
-  - **Similarity matching** (~) - Groups items with similar names using Levenshtein distance
+  - **Prefix matching** `.*` - Groups items starting with the same word (e.g., "account-personal", "account-business")
+  - **Spelling similarity** `~` - Groups items with similar spelling using Levenshtein distance (catches typos)
+  - **Semantic similarity** `≈` - Groups items with related meanings using word associations (e.g., "invoice" and "bill")
 - **⚡ Fast**: Client-side grouping for instant filtering and responsive UI
 - **🔒 Safe**: Confirmation dialogs for all destructive operations
 - **🐳 Docker Ready**: Simple deployment with Docker Compose
@@ -134,8 +135,10 @@ Consolidate similar items with intelligent grouping:
 **Suggestion Groups:**
 - Groups are displayed alphabetically with a type indicator:
   - `.*` (blue) = Prefix match - items sharing a common starting word
-  - `~` (green) = Similar match - items with similar names (Levenshtein distance)
-- Items can appear in multiple groups if they match both criteria
+  - `~` (green) = Spelling similarity - items with similar spelling (Levenshtein distance)
+  - `≈` (purple) = Semantic similarity - items with related meanings (word associations)
+- Items can appear in multiple groups if they match multiple criteria
+- Use the checkboxes to enable/disable each grouping type
 
 **How to Merge:**
 1. Click "Find Suggestions" to load all items and compute groups

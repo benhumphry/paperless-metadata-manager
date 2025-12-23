@@ -631,6 +631,46 @@
             </div>
         </div>
 
+        <!-- Grouping Type Toggles -->
+        <div class="mb-4 flex items-center space-x-6">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Group by:</span
+            >
+            <label class="inline-flex items-center cursor-pointer">
+                <input
+                    type="checkbox"
+                    x-model="groupByPrefix"
+                    @change="allItemsLoaded && computeMergeGroups()"
+                    class="form-checkbox h-4 w-4 text-blue-500 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                />
+                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                    >Prefix <span class="text-blue-500">.*</span></span
+                >
+            </label>
+            <label class="inline-flex items-center cursor-pointer">
+                <input
+                    type="checkbox"
+                    x-model="groupBySpelling"
+                    @change="allItemsLoaded && computeMergeGroups()"
+                    class="form-checkbox h-4 w-4 text-green-500 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                />
+                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                    >Spelling <span class="text-green-500">~</span></span
+                >
+            </label>
+            <label class="inline-flex items-center cursor-pointer">
+                <input
+                    type="checkbox"
+                    x-model="groupBySemantic"
+                    @change="allItemsLoaded && computeMergeGroups()"
+                    class="form-checkbox h-4 w-4 text-purple-500 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                />
+                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                    >Semantic <span class="text-purple-500">≈</span></span
+                >
+            </label>
+        </div>
+
         <!-- Prefix Filter for Suggestions -->
         <div class="mb-4 flex items-center space-x-4">
             <input
@@ -679,8 +719,14 @@
                                 <span
                                     x-show="group.group_type === 'similar'"
                                     class="font-normal text-green-500"
-                                    title="Similar match"
+                                    title="Spelling similarity"
                                     >~</span
+                                >
+                                <span
+                                    x-show="group.group_type === 'semantic'"
+                                    class="font-normal text-purple-500"
+                                    title="Semantic similarity"
+                                    >≈</span
                                 >
                             </h4>
                             <span
@@ -932,6 +978,15 @@
             // Cached items for client-side merge grouping
             allItemsForMerge: [],
             allItemsLoaded: false,
+
+            // Word associations for semantic grouping
+            wordAssociations: null,
+            wordAssociationsLoaded: false,
+
+            // Grouping type toggles
+            groupByPrefix: true,
+            groupBySpelling: true,
+            groupBySemantic: true,
 
             // Pagination state (All tab)
             currentPage: 1,
@@ -1229,6 +1284,98 @@
                 return result;
             },
 
+            getWordAssociations(word) {
+                // Get associations for a word from the thesaurus
+                if (!this.wordAssociations) return [];
+                const upper = word.toUpperCase();
+                const associations = this.wordAssociations[upper];
+                if (!associations) return [];
+                // Return just the words (keys), sorted by frequency
+                return associations.map((obj) =>
+                    Object.keys(obj)[0].toLowerCase(),
+                );
+            },
+
+            groupItemsBySemantic(items) {
+                if (!this.wordAssociations) return {};
+
+                const groups = {};
+                const wordToGroup = {}; // Maps words to their group representative
+
+                for (const item of items) {
+                    const words = this.extractWords(item.name);
+                    if (words.length === 0) continue;
+
+                    let matched = false;
+                    let matchedGroup = null;
+
+                    for (const word of words) {
+                        // Check if this word is already in a group
+                        if (wordToGroup[word]) {
+                            matchedGroup = wordToGroup[word];
+                            matched = true;
+                            break;
+                        }
+
+                        // Get associations for this word
+                        const associations = this.getWordAssociations(word);
+
+                        // Check if any association matches an existing group
+                        for (const assoc of associations.slice(0, 10)) {
+                            // Top 10 associations
+                            if (wordToGroup[assoc]) {
+                                matchedGroup = wordToGroup[assoc];
+                                matched = true;
+                                // Also add this word to the group mapping
+                                wordToGroup[word] = matchedGroup;
+                                break;
+                            }
+                        }
+                        if (matched) break;
+
+                        // Check if any existing group word is in this word's associations
+                        for (const [existingWord, group] of Object.entries(
+                            wordToGroup,
+                        )) {
+                            if (associations.includes(existingWord)) {
+                                matchedGroup = group;
+                                matched = true;
+                                wordToGroup[word] = matchedGroup;
+                                break;
+                            }
+                        }
+                        if (matched) break;
+                    }
+
+                    if (matched && matchedGroup) {
+                        if (!groups[matchedGroup]) groups[matchedGroup] = [];
+                        groups[matchedGroup].push(item);
+                    } else if (words.length > 0) {
+                        // Create new group with first word as representative
+                        const representative = words[0];
+                        if (!groups[representative])
+                            groups[representative] = [];
+                        groups[representative].push(item);
+                        for (const word of words) {
+                            wordToGroup[word] = representative;
+                        }
+                    }
+                }
+
+                // Filter to groups with 2+ items
+                const result = {};
+                for (const [word, groupItems] of Object.entries(groups)) {
+                    if (groupItems.length > 1) {
+                        result[word] = groupItems.sort(
+                            (a, b) =>
+                                b.document_count - a.document_count ||
+                                a.name.localeCompare(b.name),
+                        );
+                    }
+                }
+                return result;
+            },
+
             computeMergeGroups() {
                 let items = this.allItemsForMerge;
 
@@ -1240,45 +1387,67 @@
                     );
                 }
 
-                // Get prefix-based groups
-                const prefixGroups = this.groupItemsByPrefix(items);
-
-                // Get similarity-based groups
-                const similarityGroups = this.groupItemsBySimilarity(items);
-
-                // Combine with prefixes
                 const allGroups = {};
 
-                for (const [prefix, groupItems] of Object.entries(
-                    prefixGroups,
-                )) {
-                    const key = `prefix:${prefix}`;
-                    allGroups[key] = {
-                        [this.itemKey]: groupItems,
-                        total_documents: groupItems.reduce(
-                            (sum, item) => sum + item.document_count,
-                            0,
-                        ),
-                        suggested_name:
-                            prefix.charAt(0).toUpperCase() + prefix.slice(1),
-                        group_type: "prefix",
-                    };
+                // Get prefix-based groups if enabled
+                if (this.groupByPrefix) {
+                    const prefixGroups = this.groupItemsByPrefix(items);
+                    for (const [prefix, groupItems] of Object.entries(
+                        prefixGroups,
+                    )) {
+                        const key = `prefix:${prefix}`;
+                        allGroups[key] = {
+                            [this.itemKey]: groupItems,
+                            total_documents: groupItems.reduce(
+                                (sum, item) => sum + item.document_count,
+                                0,
+                            ),
+                            suggested_name:
+                                prefix.charAt(0).toUpperCase() +
+                                prefix.slice(1),
+                            group_type: "prefix",
+                        };
+                    }
                 }
 
-                for (const [word, groupItems] of Object.entries(
-                    similarityGroups,
-                )) {
-                    const key = `similar:${word}`;
-                    allGroups[key] = {
-                        [this.itemKey]: groupItems,
-                        total_documents: groupItems.reduce(
-                            (sum, item) => sum + item.document_count,
-                            0,
-                        ),
-                        suggested_name:
-                            word.charAt(0).toUpperCase() + word.slice(1),
-                        group_type: "similar",
-                    };
+                // Get spelling similarity groups if enabled
+                if (this.groupBySpelling) {
+                    const similarityGroups = this.groupItemsBySimilarity(items);
+                    for (const [word, groupItems] of Object.entries(
+                        similarityGroups,
+                    )) {
+                        const key = `similar:${word}`;
+                        allGroups[key] = {
+                            [this.itemKey]: groupItems,
+                            total_documents: groupItems.reduce(
+                                (sum, item) => sum + item.document_count,
+                                0,
+                            ),
+                            suggested_name:
+                                word.charAt(0).toUpperCase() + word.slice(1),
+                            group_type: "similar",
+                        };
+                    }
+                }
+
+                // Get semantic groups if enabled and associations loaded
+                if (this.groupBySemantic && this.wordAssociationsLoaded) {
+                    const semanticGroups = this.groupItemsBySemantic(items);
+                    for (const [word, groupItems] of Object.entries(
+                        semanticGroups,
+                    )) {
+                        const key = `semantic:${word}`;
+                        allGroups[key] = {
+                            [this.itemKey]: groupItems,
+                            total_documents: groupItems.reduce(
+                                (sum, item) => sum + item.document_count,
+                                0,
+                            ),
+                            suggested_name:
+                                word.charAt(0).toUpperCase() + word.slice(1),
+                            group_type: "semantic",
+                        };
+                    }
                 }
 
                 this.mergeGroups = allGroups;
@@ -1293,6 +1462,20 @@
                 }
             },
 
+            async loadWordAssociations() {
+                if (this.wordAssociationsLoaded) return;
+                try {
+                    const resp = await fetch(
+                        "/static/data/word-associations.json",
+                    );
+                    this.wordAssociations = await resp.json();
+                    this.wordAssociationsLoaded = true;
+                } catch (e) {
+                    console.warn("Failed to load word associations:", e);
+                    this.wordAssociations = null;
+                }
+            },
+
             async loadMergeSuggestions() {
                 if (!this.apiEndpoint) return;
 
@@ -1304,6 +1487,11 @@
                         const data = await resp.json();
                         this.allItemsForMerge = data[this.itemKey];
                         this.allItemsLoaded = true;
+                    }
+
+                    // Load word associations for semantic grouping (in parallel if needed)
+                    if (this.groupBySemantic && !this.wordAssociationsLoaded) {
+                        await this.loadWordAssociations();
                     }
 
                     // Compute groups client-side
