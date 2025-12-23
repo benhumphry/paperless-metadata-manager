@@ -19,6 +19,7 @@ A web-based tool for bulk metadata management in [Paperless-ngx](https://github.
   - **Prefix matching** `.*` - Groups items starting with the same word (e.g., "account-personal", "account-business")
   - **Spelling similarity** `~` - Groups items with similar spelling using Levenshtein distance (catches typos)
   - **Semantic similarity** `≈` - Groups items with related meanings using word associations (e.g., "invoice" and "bill")
+  - **AI grouping** `⚡` - Optional LLM-powered grouping using OpenAI, Anthropic, or Ollama
 - **⚡ Fast**: Client-side grouping for instant filtering and responsive UI
 - **🔒 Safe**: Confirmation dialogs for all destructive operations
 - **🐳 Docker Ready**: Simple deployment with Docker Compose
@@ -83,7 +84,11 @@ All configuration is via environment variables (set in `.env` file):
 | `PAPERLESS_API_TOKEN` | ✅ | - | API token for authentication |
 | `PORT` | ❌ | `8000` | Port for the web UI |
 | `LOG_LEVEL` | ❌ | `info` | Logging level (debug, info, warning, error) |
-| `EXCLUDE_PATTERNS` | ❌ | `new,inbox,todo,review` | Comma-separated list of tag patterns to exclude from cleanup suggestions. Supports regex patterns (e.g., `^important.*,^keep-.*`) |
+| `EXCLUDE_PATTERNS` | ❌ | `new,inbox,todo,review` | Comma-separated list of tag patterns to exclude from cleanup suggestions |
+| `LLM_TYPE` | ❌ | - | LLM provider: `openai`, `anthropic`, or `ollama` |
+| `LLM_API_URL` | ❌ | varies | API URL (required for Ollama, optional for others) |
+| `LLM_API_TOKEN` | ❌ | - | API token (required for OpenAI/Anthropic) |
+| `LLM_MODEL` | ❌ | varies | Model name (e.g., `gpt-4o-mini`, `claude-3-haiku-20240307`, `llama3`) |
 
 ### Exclude Patterns
 
@@ -137,8 +142,15 @@ Consolidate similar items with intelligent grouping:
   - `.*` (blue) = Prefix match - items sharing a common starting word
   - `~` (green) = Spelling similarity - items with similar spelling (Levenshtein distance)
   - `≈` (purple) = Semantic similarity - items with related meanings (word associations)
+  - `⚡` (amber) = AI suggested - LLM-powered grouping (requires LLM configuration)
 - Items can appear in multiple groups if they match multiple criteria
 - Use the checkboxes to enable/disable each grouping type
+
+**AI Grouping (Optional):**
+- Configure `LLM_TYPE` and `LLM_API_TOKEN` to enable the "⚡ AI Group" button
+- Supports OpenAI, Anthropic, and local Ollama models
+- Sends all item names to the LLM in a single request for intelligent grouping
+- Great for finding semantic relationships the other methods might miss
 
 **How to Merge:**
 1. Click "Find Suggestions" to load all items and compute groups

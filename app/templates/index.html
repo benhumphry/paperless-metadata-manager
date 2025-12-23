@@ -687,6 +687,17 @@
             >
                 Find Suggestions
             </button>
+            <button
+                x-show="llmEnabled && allItemsLoaded"
+                @click="loadLlmGroups()"
+                :disabled="llmLoading"
+                class="px-4 py-2 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+                <span x-show="llmLoading" class="animate-spin">⏳</span>
+                <span
+                    x-text="llmLoading ? 'Asking AI...' : '⚡ AI Group'"
+                ></span>
+            </button>
             <span
                 x-show="metadataType === 'tags'"
                 class="text-sm text-gray-500 dark:text-gray-400"
@@ -727,6 +738,12 @@
                                     class="font-normal text-purple-500"
                                     title="Semantic similarity"
                                     >≈</span
+                                >
+                                <span
+                                    x-show="group.group_type === 'llm'"
+                                    class="font-normal text-amber-500"
+                                    title="AI suggested"
+                                    >⚡</span
                                 >
                             </h4>
                             <span
@@ -987,6 +1004,10 @@
             groupByPrefix: true,
             groupBySpelling: true,
             groupBySemantic: true,
+
+            // LLM grouping
+            llmEnabled: false,
+            llmLoading: false,
 
             // Pagination state (All tab)
             currentPage: 1,
@@ -1487,6 +1508,7 @@
                         const data = await resp.json();
                         this.allItemsForMerge = data[this.itemKey];
                         this.allItemsLoaded = true;
+                        this.llmEnabled = data.llm_enabled || false;
                     }
 
                     // Load word associations for semantic grouping (in parallel if needed)
@@ -1500,6 +1522,47 @@
                     showToast("Failed to load items: " + e.message, "error");
                 }
                 this.loading = false;
+            },
+
+            async loadLlmGroups() {
+                if (!this.apiEndpoint || !this.llmEnabled) return;
+
+                this.llmLoading = true;
+                try {
+                    const resp = await fetch(`${this.apiEndpoint}/llm-groups`, {
+                        method: "POST",
+                    });
+
+                    if (!resp.ok) {
+                        const err = await resp.json();
+                        throw new Error(err.detail || "LLM request failed");
+                    }
+
+                    const data = await resp.json();
+
+                    // Add LLM groups to existing groups
+                    for (const [key, group] of Object.entries(data.groups)) {
+                        const groupKey = `llm:${key}`;
+                        this.mergeGroups[groupKey] = group;
+
+                        // Cache items
+                        for (const item of group[this.itemKey]) {
+                            this.mergeItemCache[item.id] = {
+                                name: item.name,
+                                color: item.color,
+                                document_count: item.document_count,
+                            };
+                        }
+                    }
+
+                    showToast(
+                        `Found ${data.total_groups} LLM-suggested groups`,
+                        "success",
+                    );
+                } catch (e) {
+                    showToast("LLM grouping failed: " + e.message, "error");
+                }
+                this.llmLoading = false;
             },
 
             editItem(item) {

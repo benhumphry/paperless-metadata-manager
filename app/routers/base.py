@@ -157,6 +157,63 @@ class MetadataRouter(Generic[T]):
                 return {
                     self.item_key: [self.to_dict(i) for i in sorted_items],
                     "total": len(sorted_items),
+                    "llm_enabled": settings.llm_enabled,
+                }
+
+        @self.router.post("/llm-groups")
+        async def get_llm_groups(
+            settings: Settings = Depends(get_settings),
+        ):
+            """Get semantic groupings using LLM."""
+            if not settings.llm_enabled:
+                raise HTTPException(
+                    status_code=400,
+                    detail="LLM is not configured. Set LLM_TYPE and LLM_API_TOKEN in environment.",
+                )
+
+            from app.llm_client import LLMClient
+
+            async with PaperlessClient(
+                settings.paperless_base_url,
+                settings.paperless_api_token,
+            ) as client:
+                items = await self.get_all(client)
+                item_names = [i.name for i in items]
+
+                llm = LLMClient(
+                    llm_type=settings.llm_type,
+                    api_url=settings.llm_api_url,
+                    api_token=settings.llm_api_token,
+                    model=settings.llm_model,
+                )
+
+                try:
+                    groups = await llm.get_semantic_groups(item_names, self.item_key)
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"LLM request failed: {str(e)}",
+                    )
+
+                # Build response with item details
+                item_map = {i.name: i for i in items}
+                result = {}
+                for group_name, names in groups.items():
+                    group_items = []
+                    for name in names:
+                        if name in item_map:
+                            group_items.append(self.to_dict(item_map[name]))
+                    if len(group_items) >= 2:
+                        result[group_name] = {
+                            self.item_key: group_items,
+                            "total_documents": sum(i["document_count"] for i in group_items),
+                            "suggested_name": group_name,
+                            "group_type": "llm",
+                        }
+
+                return {
+                    "groups": result,
+                    "total_groups": len(result),
                 }
 
         @self.router.get("/low-usage")
