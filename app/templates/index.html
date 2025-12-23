@@ -1612,6 +1612,7 @@
                         this.mergeTargetName = "";
                         this.customMergeSearch = "";
                         this.customMergeSearchResults = [];
+                        this.allItemsLoaded = false; // Force refresh of cached items
                         this.loadData();
                         this.loadMergeSuggestions();
                     } catch (e) {
