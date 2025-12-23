@@ -155,6 +155,11 @@ JSON response:"""
             # Try to extract JSON from the response
             content = content.strip()
 
+            # Remove control characters that can break JSON parsing
+            import re
+
+            content = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", content)
+
             # Handle qwen3 thinking tags - extract content after </think>
             if "<think>" in content:
                 think_end = content.find("</think>")
