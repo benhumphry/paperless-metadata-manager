@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     llm_api_url: str | None = None  # API URL (required for ollama, optional for others)
     llm_api_token: str | None = None  # API token (not needed for ollama)
     llm_model: str | None = (
-        None  # Model name (e.g., "gpt-4o-mini", "claude-3-haiku-20240307", "llama3")
+        None  # Model name (e.g., "gpt-5-mini", "claude-3-haiku-20240307", "llama3")
     )
 
     @property

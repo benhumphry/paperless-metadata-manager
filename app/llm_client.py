@@ -22,7 +22,7 @@ class LLMClient:
         # Set defaults based on type
         if self.llm_type == "openai":
             self.api_url = api_url or "https://api.openai.com/v1"
-            self.model = model or "gpt-4o-mini"
+            self.model = model or "gpt-5-mini"
         elif self.llm_type == "anthropic":
             self.api_url = api_url or "https://api.anthropic.com"
             self.model = model or "claude-3-haiku-20240307"

@@ -88,7 +88,7 @@ All configuration is via environment variables (set in `.env` file):
 | `LLM_TYPE` | ❌ | - | LLM provider: `openai`, `anthropic`, or `ollama` |
 | `LLM_API_URL` | ❌ | varies | API URL (required for Ollama, optional for others) |
 | `LLM_API_TOKEN` | ❌ | - | API token (required for OpenAI/Anthropic) |
-| `LLM_MODEL` | ❌ | varies | Model name (e.g., `gpt-4o-mini`, `claude-3-haiku-20240307`, `llama3`) |
+| `LLM_MODEL` | ❌ | varies | Model name (e.g., `gpt-5-mini`, `claude-3-haiku-20240307`, `llama3`) |
 
 ### Exclude Patterns
 
