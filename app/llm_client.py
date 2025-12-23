@@ -109,7 +109,6 @@ JSON response (group name -> array of exact item names):"""
             json={
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.3,
             },
         )
         if response.status_code != 200:
