@@ -1,22 +1,19 @@
-{% extends "base.html" %} {% block content %}
+{% extends "base.html" %} {% block header_center %}
+<div class="flex items-center space-x-2">
+    <label class="text-sm font-medium text-gray-700 dark:text-gray-300"
+        >Metadata:</label
+    >
+    <select
+        id="metadataTypeSelect"
+        class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+    >
+        <option value="tags">Tags</option>
+        <option value="correspondents">Correspondents</option>
+        <option value="document_types">Document Types</option>
+    </select>
+</div>
+{% endblock %} {% block content %}
 <div x-data="metadataManager()" x-init="init()">
-    <!-- Metadata Type Selector -->
-    <div class="mb-6 bg-white dark:bg-gray-800 shadow rounded-lg p-4">
-        <label
-            class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >Metadata Type</label
-        >
-        <select
-            x-model="metadataType"
-            @change="onMetadataTypeChange()"
-            class="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-        >
-            <option value="tags">Tags</option>
-            <option value="correspondents">Correspondents</option>
-            <option value="document_types">Document Types</option>
-        </select>
-    </div>
-
     <!-- Tabs -->
     <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-8">
@@ -1162,6 +1159,20 @@
 
             // Methods
             async init() {
+                // Connect header metadata selector to this component
+                const headerSelect =
+                    document.getElementById("metadataTypeSelect");
+                if (headerSelect) {
+                    headerSelect.value = this.metadataType;
+                    headerSelect.addEventListener("change", (e) => {
+                        this.metadataType = e.target.value;
+                        this.onMetadataTypeChange();
+                    });
+                    // Keep header select in sync if metadataType changes internally
+                    this.$watch("metadataType", (value) => {
+                        headerSelect.value = value;
+                    });
+                }
                 await this.loadData();
             },
 
