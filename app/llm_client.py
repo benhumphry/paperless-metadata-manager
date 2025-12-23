@@ -1,9 +1,12 @@
 """LLM client abstraction for semantic grouping."""
 
 import json
+import logging
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -49,7 +52,7 @@ class LLMClient:
 
         prompt = self._build_prompt(item_names, item_type)
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             if self.llm_type == "openai":
                 return await self._call_openai(client, prompt)
             elif self.llm_type == "anthropic":
@@ -67,15 +70,17 @@ class LLMClient:
 
 Given the following list of {item_type}, identify groups of items that are semantically related (same concept, synonyms, or closely related topics). Only include groups with 2 or more items.
 
+IMPORTANT: Use the EXACT names from the list - copy them verbatim, do not shorten or paraphrase.
+
 {item_type.upper()}:
 {items_str}
 
-Respond with a JSON object where keys are descriptive group names and values are arrays of the exact item names from the list above that belong to that group. Only include items that genuinely belong together semantically.
+Respond with a JSON object where keys are group names and values are arrays of exact item names from the list.
 
 Example format:
-{{"Financial Documents": ["invoice", "receipt", "bill"], "Personal ID": ["passport", "drivers-license"]}}
+{{"Financial": ["Account", "Accounting", "Bank"], "Legal": ["Attorney", "Contract"]}}
 
-Respond ONLY with the JSON object, no other text."""
+JSON response:"""
 
     async def _call_openai(self, client: httpx.AsyncClient, prompt: str) -> dict[str, list[str]]:
         """Call OpenAI API."""
@@ -119,19 +124,30 @@ Respond ONLY with the JSON object, no other text."""
 
     async def _call_ollama(self, client: httpx.AsyncClient, prompt: str) -> dict[str, list[str]]:
         """Call Ollama API."""
+        request_body = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            # Don't force JSON format - let the model respond naturally and parse it
+        }
+        logger.info(
+            f"Ollama request to {self.api_url}/api/generate: model={self.model}, prompt_length={len(prompt)} chars"
+        )
+        logger.info(f"Ollama prompt (first 500 chars):\n{prompt[:500]}...")
         response = await client.post(
             f"{self.api_url}/api/generate",
-            json={
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-            },
+            json=request_body,
         )
+        if response.status_code != 200:
+            logger.error(f"Ollama error: {response.status_code} - {response.text}")
         response.raise_for_status()
         data = response.json()
-        content = data["response"]
-        return self._parse_response(content)
+        logger.info(f"Ollama response keys: {data.keys()}")
+        content = data.get("response", "{}")
+        logger.info(f"Ollama raw response ({len(content)} chars): {content[:1000]}")
+        result = self._parse_response(content)
+        logger.info(f"Parsed result: {len(result)} groups")
+        return result
 
     def _parse_response(self, content: str) -> dict[str, list[str]]:
         """Parse LLM response to extract groups."""
@@ -139,16 +155,34 @@ Respond ONLY with the JSON object, no other text."""
             # Try to extract JSON from the response
             content = content.strip()
 
+            # Handle qwen3 thinking tags - extract content after </think>
+            if "<think>" in content:
+                think_end = content.find("</think>")
+                if think_end != -1:
+                    content = content[think_end + 8 :].strip()
+                    logger.info(f"Stripped thinking tags, content now {len(content)} chars")
+
             # Handle markdown code blocks
             if content.startswith("```"):
                 lines = content.split("\n")
                 # Remove first and last lines (```json and ```)
                 content = "\n".join(lines[1:-1])
+                logger.info(f"Stripped markdown, content now {len(content)} chars")
+
+            # Try to find JSON object in the content
+            if not content.startswith("{"):
+                # Look for first { and last }
+                start = content.find("{")
+                end = content.rfind("}")
+                if start != -1 and end != -1:
+                    content = content[start : end + 1]
+                    logger.info(f"Extracted JSON object, content now {len(content)} chars")
 
             groups = json.loads(content)
 
             # Validate structure
             if not isinstance(groups, dict):
+                logger.warning(f"Parsed JSON is not a dict: {type(groups)}")
                 return {}
 
             result = {}
@@ -160,5 +194,10 @@ Respond ONLY with the JSON object, no other text."""
                         result[str(key)] = items
 
             return result
-        except (json.JSONDecodeError, KeyError, IndexError):
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error: {e}")
+            logger.error(f"Content preview: {content[:500]}...")
+            return {}
+        except (KeyError, IndexError) as e:
+            logger.error(f"Parse error: {e}")
             return {}

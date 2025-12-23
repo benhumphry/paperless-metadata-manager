@@ -195,6 +195,13 @@ class MetadataRouter(Generic[T]):
                         detail=f"LLM request failed: {str(e)}",
                     )
 
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.info(f"LLM returned {len(groups)} groups: {list(groups.keys())}")
+                for gname, gnames in groups.items():
+                    logger.info(f"  Group '{gname}': {gnames}")
+
                 # Build response with item details
                 item_map = {i.name: i for i in items}
                 result = {}
@@ -203,6 +210,8 @@ class MetadataRouter(Generic[T]):
                     for name in names:
                         if name in item_map:
                             group_items.append(self.to_dict(item_map[name]))
+                        else:
+                            logger.warning(f"  LLM returned name '{name}' not found in items")
                     if len(group_items) >= 2:
                         result[group_name] = {
                             self.item_key: group_items,
