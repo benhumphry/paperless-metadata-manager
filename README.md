@@ -90,6 +90,24 @@ All configuration is via environment variables (set in `.env` file):
 | `LLM_API_TOKEN` | ❌ | - | API token (required for OpenAI/Anthropic) |
 | `LLM_MODEL` | ❌ | varies | Model name (e.g., `gpt-5-mini`, `claude-3-haiku-20240307`, `llama3`) |
 | `LLM_LANGUAGE` | ❌ | `English` | Language for LLM responses |
+| `LLM_PROMPT` | ❌ | - | Custom prompt template (advanced, see below) |
+
+### Custom LLM Prompt
+
+The `LLM_PROMPT` setting allows advanced users to customize the prompt sent to the LLM. This is useful if the default prompt doesn't work well with your specific model.
+
+**Available variables:**
+- `{language}` - The configured language (from `LLM_LANGUAGE`)
+- `{item_type}` - The item type being grouped (e.g., "tags", "correspondents")
+- `{item_type_upper}` - Uppercase version (e.g., "TAGS", "CORRESPONDENTS")
+- `{items}` - The list of items to group, one per line with "- " prefix
+
+**Example:**
+```bash
+LLM_PROMPT=Analyze these {item_type_upper} and group similar ones. Respond in {language} with JSON: {{"groups": {{"GroupName": ["item1", "item2"]}}}}. Items:\n{items}
+```
+
+Note: Use `{{` and `}}` to escape literal braces in the JSON format instruction.
 
 ### Exclude Patterns
 

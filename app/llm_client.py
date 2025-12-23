@@ -19,10 +19,12 @@ class LLMClient:
         api_token: str | None = None,
         model: str | None = None,
         language: str = "English",
+        custom_prompt: str | None = None,
     ):
         self.llm_type = llm_type.lower()
         self.api_token = api_token
         self.language = language
+        self.custom_prompt = custom_prompt
 
         # Set defaults based on type
         if self.llm_type == "openai":
@@ -74,6 +76,15 @@ class LLMClient:
     def _build_prompt(self, item_names: list[str], item_type: str) -> str:
         """Build the prompt for semantic grouping."""
         items_str = "\n".join(f"- {name}" for name in item_names)
+
+        if self.custom_prompt:
+            # Use custom prompt with variable substitution
+            return self.custom_prompt.format(
+                language=self.language,
+                item_type=item_type,
+                item_type_upper=item_type.upper(),
+                items=items_str,
+            )
 
         return f"""Respond in {self.language}. Quickly scan this list of {item_type} and identify 10-20 obvious groups of related items. Focus on clear matches - don't try to categorize everything.
 

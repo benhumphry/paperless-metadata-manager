@@ -186,6 +186,7 @@ class MetadataRouter(Generic[T]):
                     api_token=settings.llm_api_token,
                     model=settings.llm_model,
                     language=settings.llm_language,
+                    custom_prompt=settings.llm_prompt,
                 )
 
                 try:
