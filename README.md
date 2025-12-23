@@ -166,10 +166,13 @@ Consolidate similar items with intelligent grouping:
 - Use the checkboxes to enable/disable each grouping type
 
 **AI Grouping (Optional):**
-- Configure `LLM_TYPE` and `LLM_API_TOKEN` to enable the "⚡ AI Group" button
+- Configure `LLM_TYPE` and `LLM_API_TOKEN` to enable the "⚡ AI" checkbox
 - Supports OpenAI, Anthropic, and local Ollama models
 - Sends all item names to the LLM in a single request for intelligent grouping
+- Results are cached per session - merging items updates the cache without re-querying
 - Great for finding semantic relationships the other methods might miss
+
+**Note:** Cloud APIs (OpenAI, Anthropic) typically respond in under a minute. Local models via Ollama may take significantly longer for large datasets (500+ items), depending on your hardware.
 
 **How to Merge:**
 1. Click "Find Suggestions" to load all items and compute groups
