@@ -73,21 +73,17 @@ class LLMClient:
         """Build the prompt for semantic grouping."""
         items_str = "\n".join(f"- {name}" for name in item_names)
 
-        return f"""You are helping organize {item_type} in a document management system.
+        return f"""Quickly scan this list of {item_type} and identify 10-20 obvious groups of related items. Focus on clear matches - don't try to categorize everything.
 
-Given the following list of {item_type}, identify groups of items that are semantically related (same concept, synonyms, or closely related topics). Only include groups with 2 or more items.
-
-IMPORTANT: Use the EXACT names from the list - copy them verbatim, do not shorten or paraphrase.
+RULES:
+- Use EXACT names from the list (copy verbatim)
+- Only groups with 2+ items
+- Keep it brief - just the most obvious groupings
 
 {item_type.upper()}:
 {items_str}
 
-Respond with a JSON object where keys are group names and values are arrays of exact item names from the list.
-
-Example format:
-{{"Financial": ["Account", "Accounting", "Bank"], "Legal": ["Attorney", "Contract"]}}
-
-JSON response:"""
+JSON response (group name -> array of exact item names):"""
 
     async def _call_openai(self, client: httpx.AsyncClient, prompt: str) -> dict[str, list[str]]:
         """Call OpenAI API."""
