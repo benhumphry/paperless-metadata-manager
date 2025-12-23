@@ -202,14 +202,18 @@ class MetadataRouter(Generic[T]):
                 for gname, gnames in groups.items():
                     logger.info(f"  Group '{gname}': {gnames}")
 
-                # Build response with item details
+                # Build response with item details (case-insensitive matching)
                 item_map = {i.name: i for i in items}
+                item_map_lower = {i.name.lower(): i for i in items}
                 result = {}
                 for group_name, names in groups.items():
                     group_items = []
                     for name in names:
                         if name in item_map:
                             group_items.append(self.to_dict(item_map[name]))
+                        elif name.lower() in item_map_lower:
+                            # Case-insensitive match
+                            group_items.append(self.to_dict(item_map_lower[name.lower()]))
                         else:
                             logger.warning(f"  LLM returned name '{name}' not found in items")
                     if len(group_items) >= 2:
