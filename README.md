@@ -15,7 +15,10 @@ A web-based tool for bulk metadata management in [Paperless-ngx](https://github.
 
 - **📊 Metadata Overview**: View all tags, correspondents, and document types with document counts
 - **🧹 Cleanup**: Identify and bulk-delete items with zero or few documents
-- **🔀 Smart Merge**: Auto-suggest similar items for merging based on common prefixes
+- **🔀 Smart Merge**: Auto-suggest similar items for merging based on:
+  - **Prefix matching** (.*) - Groups items starting with the same word (e.g., "account-personal", "account-business")
+  - **Similarity matching** (~) - Groups items with similar names using Levenshtein distance
+- **⚡ Fast**: Client-side grouping for instant filtering and responsive UI
 - **🔒 Safe**: Confirmation dialogs for all destructive operations
 - **🐳 Docker Ready**: Simple deployment with Docker Compose
 
@@ -126,16 +129,30 @@ Find items that are candidates for deletion:
 
 ### Merge Tab
 
-Consolidate similar items:
-1. Click on suggestion groups to add items to selection
-2. Or use custom search to find specific items
-3. Click individual items to add/remove from selection
-4. Enter target name and click "Merge Selected"
+Consolidate similar items with intelligent grouping:
 
-The merge process:
+**Suggestion Groups:**
+- Groups are displayed alphabetically with a type indicator:
+  - `.*` (blue) = Prefix match - items sharing a common starting word
+  - `~` (green) = Similar match - items with similar names (Levenshtein distance)
+- Items can appear in multiple groups if they match both criteria
+
+**How to Merge:**
+1. Click "Find Suggestions" to load all items and compute groups
+2. Click on suggestion groups to add all items to selection
+3. Or use custom search to find specific items
+4. Click individual items to add/remove from selection
+5. Enter target name and click "Merge Selected"
+
+**Live Filtering:**
+- Type in the prefix filter box for instant filtering (no server round-trip)
+- Groups are recomputed client-side as you type
+
+**The merge process:**
 1. Creates the target item (if it doesn't exist)
 2. Reassigns all documents to the target
 3. Deletes the source items
+4. Automatically refreshes suggestions to reflect the changes
 
 ## Deployment Options
 
@@ -236,7 +253,7 @@ paperless-metadata-manager/
 | `/health/full` | GET | Health check with Paperless connection test |
 | `/api/tags` | GET | List all tags |
 | `/api/tags/low-usage` | GET | List low-usage tags |
-| `/api/tags/merge-suggestions` | GET | Get merge suggestions |
+| `/api/tags/all` | GET | Get all tags (for client-side processing) |
 | `/api/tags/delete` | POST | Delete tags |
 | `/api/tags/merge/preview` | POST | Preview merge operation |
 | `/api/tags/merge` | POST | Execute merge operation |
