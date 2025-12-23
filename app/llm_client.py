@@ -110,9 +110,10 @@ JSON response (group name -> array of exact item names):"""
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.3,
-                "response_format": {"type": "json_object"},
             },
         )
+        if response.status_code != 200:
+            logger.error(f"OpenAI error: {response.status_code} - {response.text}")
         response.raise_for_status()
         data = response.json()
         content = data["choices"][0]["message"]["content"]
