@@ -805,7 +805,7 @@
                             </h4>
                             <span
                                 class="text-sm text-gray-500 dark:text-gray-400"
-                                x-text="`${(group[itemKey] || []).length} items, ${group.total_documents} total docs`"
+                                x-text="`${(group[itemKey] || []).filter(i => i && i.id).length} items, ${group.total_documents} total docs`"
                             ></span>
                             <span
                                 x-show="isGroupSelected(key)"
@@ -821,8 +821,8 @@
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <template
-                            x-for="item in (group[itemKey] || [])"
-                            :key="item.id"
+                            x-for="(item, idx) in (group[itemKey] || []).filter(i => i && i.id)"
+                            :key="item.id || idx"
                         >
                             <span
                                 @click.stop="addItemToMergeSelection(item)"
