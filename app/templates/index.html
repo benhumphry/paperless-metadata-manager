@@ -775,7 +775,7 @@
                             </h4>
                             <span
                                 class="text-sm text-gray-500 dark:text-gray-400"
-                                x-text="`${group[itemKey].length} items, ${group.total_documents} total docs`"
+                                x-text="`${(group[itemKey] || []).length} items, ${group.total_documents} total docs`"
                             ></span>
                             <span
                                 x-show="isGroupSelected(key)"
@@ -790,7 +790,10 @@
                         >
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <template x-for="item in group[itemKey]" :key="item.id">
+                        <template
+                            x-for="item in (group[itemKey] || [])"
+                            :key="item.id"
+                        >
                             <span
                                 @click.stop="addItemToMergeSelection(item)"
                                 class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:ring-2 hover:ring-purple-300"
@@ -1832,7 +1835,7 @@
 
             isGroupSelected(prefix) {
                 const group = this.mergeGroups[prefix];
-                if (!group) return false;
+                if (!group || !group[this.itemKey]) return false;
                 // A group is "selected" if all its items are in the selection
                 return group[this.itemKey].every((item) =>
                     this.mergeSelectedItems.includes(item.id),
