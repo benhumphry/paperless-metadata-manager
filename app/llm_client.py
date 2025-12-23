@@ -86,12 +86,11 @@ class LLMClient:
                 items=items_str,
             )
 
-        return f"""Respond in {self.language}. Quickly scan this list of {item_type} and identify 10-20 obvious groups of related items. Focus on clear matches - don't try to categorize everything.
+        return f"""Respond in {self.language}. Scan this list of {item_type} and identify obvious groups of related items that could be merged.
 
 RULES:
 - Use EXACT names from the list (copy verbatim)
 - Only groups with 2+ items
-- Keep it brief - just the most obvious groupings
 - Respond in {self.language} only
 
 {item_type.upper()}:
