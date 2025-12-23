@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     llm_model: str | None = (
         None  # Model name (e.g., "gpt-5-mini", "claude-3-haiku-20240307", "llama3")
     )
+    llm_language: str = "English"  # Language for LLM responses
 
     @property
     def llm_enabled(self) -> bool:

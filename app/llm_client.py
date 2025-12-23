@@ -18,9 +18,11 @@ class LLMClient:
         api_url: str | None = None,
         api_token: str | None = None,
         model: str | None = None,
+        language: str = "English",
     ):
         self.llm_type = llm_type.lower()
         self.api_token = api_token
+        self.language = language
 
         # Set defaults based on type
         if self.llm_type == "openai":
@@ -73,12 +75,13 @@ class LLMClient:
         """Build the prompt for semantic grouping."""
         items_str = "\n".join(f"- {name}" for name in item_names)
 
-        return f"""Quickly scan this list of {item_type} and identify 10-20 obvious groups of related items. Focus on clear matches - don't try to categorize everything.
+        return f"""Respond in {self.language}. Quickly scan this list of {item_type} and identify 10-20 obvious groups of related items. Focus on clear matches - don't try to categorize everything.
 
 RULES:
 - Use EXACT names from the list (copy verbatim)
 - Only groups with 2+ items
 - Keep it brief - just the most obvious groupings
+- Respond in {self.language} only
 
 {item_type.upper()}:
 {items_str}
