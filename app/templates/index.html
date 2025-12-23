@@ -1904,15 +1904,62 @@
                         const result = await resp.json();
                         showToast(result.message, "success");
 
-                        // Clear selection and reload
+                        // Remove merged items from cached groups (avoid re-querying LLM)
+                        const mergedIds = new Set(this.mergeSelectedItems);
+
+                        // Update allItemsForMerge - remove merged items
+                        this.allItemsForMerge = this.allItemsForMerge.filter(
+                            (item) => !mergedIds.has(item.id),
+                        );
+
+                        // Update mergeGroups - remove merged items from each group
+                        for (const [key, group] of Object.entries(
+                            this.mergeGroups,
+                        )) {
+                            group[this.itemKey] = group[this.itemKey].filter(
+                                (item) => !mergedIds.has(item.id),
+                            );
+                            group.total_documents = group[this.itemKey].reduce(
+                                (sum, item) => sum + item.document_count,
+                                0,
+                            );
+                        }
+
+                        // Remove groups with less than 2 items
+                        for (const key of Object.keys(this.mergeGroups)) {
+                            if (
+                                this.mergeGroups[key][this.itemKey].length < 2
+                            ) {
+                                delete this.mergeGroups[key];
+                            }
+                        }
+
+                        // Also update llmGroups cache
+                        for (const [key, group] of Object.entries(
+                            this.llmGroups,
+                        )) {
+                            group[this.itemKey] = group[this.itemKey].filter(
+                                (item) => !mergedIds.has(item.id),
+                            );
+                            group.total_documents = group[this.itemKey].reduce(
+                                (sum, item) => sum + item.document_count,
+                                0,
+                            );
+                        }
+                        for (const key of Object.keys(this.llmGroups)) {
+                            if (this.llmGroups[key][this.itemKey].length < 2) {
+                                delete this.llmGroups[key];
+                            }
+                        }
+
+                        // Clear selection
                         this.mergeSelectedItems = [];
                         this.mergeTargetName = "";
                         this.customMergeSearch = "";
                         this.customMergeSearchResults = [];
-                        this.allItemsLoaded = false; // Force refresh of cached items
-                        this.llmGroupsLoaded = false; // Force refresh of LLM groups
+
+                        // Reload the main data list (lightweight)
                         this.loadData();
-                        this.loadMergeSuggestions();
                     } catch (e) {
                         showToast("Failed to merge: " + e.message, "error");
                     }
