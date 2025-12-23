@@ -636,7 +636,8 @@
             <input
                 type="text"
                 x-model="mergePrefix"
-                @keyup.enter="loadMergeSuggestions()"
+                @keyup.enter="allItemsLoaded ? computeMergeGroups() : loadMergeSuggestions()"
+                @input.debounce.300ms="allItemsLoaded && computeMergeGroups()"
                 placeholder="Filter suggestions by prefix (e.g., 'account')..."
                 class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
             />
@@ -657,18 +658,50 @@
 
         <!-- Merge Suggestion Groups -->
         <div class="space-y-4">
-            <template x-for="(group, prefix) in mergeGroups" :key="prefix">
+            <template x-for="(group, key) in sortedMergeGroups" :key="key">
                 <div
-                    @click="selectGroupForMerge(prefix, group, $event)"
+                    @click="selectGroupForMerge(key, group, $event)"
                     class="bg-white dark:bg-gray-800 shadow rounded-lg p-4 cursor-pointer hover:ring-2 hover:ring-purple-300 dark:hover:ring-purple-600 transition-all"
-                    :class="isGroupSelected(prefix) ? 'ring-2 ring-purple-500' : ''"
+                    :class="isGroupSelected(key) ? 'ring-2 ring-purple-500' : ''"
                 >
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center space-x-3">
                             <h4
-                                class="text-lg font-medium text-gray-900 dark:text-white"
+                                class="text-lg font-medium text-gray-900 dark:text-white flex items-center gap-2"
                             >
-                                "<span x-text="prefix"></span>..."
+                                <!-- Prefix icon -->
+                                <svg
+                                    x-show="group.group_type === 'prefix'"
+                                    class="w-5 h-5 text-blue-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    title="Prefix match"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                    ></path>
+                                </svg>
+                                <!-- Similar icon -->
+                                <svg
+                                    x-show="group.group_type === 'similar'"
+                                    class="w-5 h-5 text-green-500"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    title="Similar match"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                    ></path>
+                                </svg>
+                                <span x-text="group.suggested_name"></span>
                             </h4>
                             <span
                                 class="text-sm text-gray-500 dark:text-gray-400"
@@ -916,6 +949,10 @@
             customMergeSearch: "",
             customMergeSearchResults: [],
 
+            // Cached items for client-side merge grouping
+            allItemsForMerge: [],
+            allItemsLoaded: false,
+
             // Pagination state (All tab)
             currentPage: 1,
             pageSize: 50,
@@ -994,6 +1031,15 @@
                 return result;
             },
 
+            get sortedMergeGroups() {
+                // Sort merge groups alphabetically by suggested_name
+                const entries = Object.entries(this.mergeGroups);
+                entries.sort((a, b) =>
+                    a[1].suggested_name.localeCompare(b[1].suggested_name),
+                );
+                return Object.fromEntries(entries);
+            },
+
             // Methods
             async init() {
                 await this.loadData();
@@ -1016,6 +1062,8 @@
                 this.mergeTargetName = "";
                 this.customMergeSearch = "";
                 this.customMergeSearchResults = [];
+                this.allItemsForMerge = [];
+                this.allItemsLoaded = false;
                 this.loadData();
             },
 
@@ -1067,35 +1115,221 @@
                 this.loading = false;
             },
 
+            // Client-side grouping functions
+            levenshteinDistance(str1, str2) {
+                const m = str1.length;
+                const n = str2.length;
+                const dp = Array(m + 1)
+                    .fill(null)
+                    .map(() => Array(n + 1).fill(0));
+
+                for (let i = 0; i <= m; i++) dp[i][0] = i;
+                for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+                for (let i = 1; i <= m; i++) {
+                    for (let j = 1; j <= n; j++) {
+                        if (str1[i - 1] === str2[j - 1]) {
+                            dp[i][j] = dp[i - 1][j - 1];
+                        } else {
+                            dp[i][j] =
+                                1 +
+                                Math.min(
+                                    dp[i - 1][j],
+                                    dp[i][j - 1],
+                                    dp[i - 1][j - 1],
+                                );
+                        }
+                    }
+                }
+                return dp[m][n];
+            },
+
+            normalizedSimilarity(str1, str2) {
+                const maxLen = Math.max(str1.length, str2.length);
+                if (maxLen === 0) return 1;
+                return 1 - this.levenshteinDistance(str1, str2) / maxLen;
+            },
+
+            extractWords(name) {
+                return name
+                    .toLowerCase()
+                    .split(/[\s_\-]+/)
+                    .filter((w) => w.length >= 3 && !/^\d+$/.test(w));
+            },
+
+            groupItemsByPrefix(items, minPrefixLength = 3) {
+                const groups = {};
+
+                for (const item of items) {
+                    const nameLower = item.name.toLowerCase();
+                    const parts = nameLower.split(/[\s_\-]+/);
+                    let prefix;
+
+                    if (parts.length > 1) {
+                        prefix = parts[0];
+                    } else {
+                        prefix =
+                            nameLower.length >= minPrefixLength
+                                ? nameLower.substring(0, minPrefixLength)
+                                : nameLower;
+                    }
+
+                    if (prefix.length >= minPrefixLength) {
+                        if (!groups[prefix]) groups[prefix] = [];
+                        groups[prefix].push(item);
+                    }
+                }
+
+                // Filter to groups with 2+ items and sort by doc count
+                const result = {};
+                for (const [prefix, groupItems] of Object.entries(groups)) {
+                    if (groupItems.length > 1) {
+                        result[prefix] = groupItems.sort(
+                            (a, b) =>
+                                b.document_count - a.document_count ||
+                                a.name.localeCompare(b.name),
+                        );
+                    }
+                }
+                return result;
+            },
+
+            groupItemsBySimilarity(items, threshold = 0.6) {
+                const groups = {};
+                const processedWords = {}; // word -> representative
+
+                for (const item of items) {
+                    const words = this.extractWords(item.name);
+                    if (words.length === 0) continue;
+
+                    let matched = false;
+
+                    for (const word of words) {
+                        for (const [
+                            processedWord,
+                            representative,
+                        ] of Object.entries(processedWords)) {
+                            const similarity = this.normalizedSimilarity(
+                                word,
+                                processedWord,
+                            );
+                            if (similarity >= threshold) {
+                                if (!groups[representative])
+                                    groups[representative] = [];
+                                groups[representative].push(item);
+                                matched = true;
+                                break;
+                            }
+                        }
+                        if (matched) break;
+                    }
+
+                    if (!matched && words.length > 0) {
+                        const representative = words[0];
+                        if (!groups[representative])
+                            groups[representative] = [];
+                        groups[representative].push(item);
+                        for (const word of words) {
+                            processedWords[word] = representative;
+                        }
+                    }
+                }
+
+                // Filter to groups with 2+ items
+                const result = {};
+                for (const [word, groupItems] of Object.entries(groups)) {
+                    if (groupItems.length > 1) {
+                        result[word] = groupItems.sort(
+                            (a, b) =>
+                                b.document_count - a.document_count ||
+                                a.name.localeCompare(b.name),
+                        );
+                    }
+                }
+                return result;
+            },
+
+            computeMergeGroups() {
+                let items = this.allItemsForMerge;
+
+                // Apply prefix filter if set
+                if (this.mergePrefix) {
+                    const prefixLower = this.mergePrefix.toLowerCase();
+                    items = items.filter((item) =>
+                        item.name.toLowerCase().startsWith(prefixLower),
+                    );
+                }
+
+                // Get prefix-based groups
+                const prefixGroups = this.groupItemsByPrefix(items);
+
+                // Get similarity-based groups
+                const similarityGroups = this.groupItemsBySimilarity(items);
+
+                // Combine with prefixes
+                const allGroups = {};
+
+                for (const [prefix, groupItems] of Object.entries(
+                    prefixGroups,
+                )) {
+                    const key = `prefix:${prefix}`;
+                    allGroups[key] = {
+                        [this.itemKey]: groupItems,
+                        total_documents: groupItems.reduce(
+                            (sum, item) => sum + item.document_count,
+                            0,
+                        ),
+                        suggested_name:
+                            prefix.charAt(0).toUpperCase() + prefix.slice(1),
+                        group_type: "prefix",
+                    };
+                }
+
+                for (const [word, groupItems] of Object.entries(
+                    similarityGroups,
+                )) {
+                    const key = `similar:${word}`;
+                    allGroups[key] = {
+                        [this.itemKey]: groupItems,
+                        total_documents: groupItems.reduce(
+                            (sum, item) => sum + item.document_count,
+                            0,
+                        ),
+                        suggested_name:
+                            word.charAt(0).toUpperCase() + word.slice(1),
+                        group_type: "similar",
+                    };
+                }
+
+                this.mergeGroups = allGroups;
+
+                // Cache all items for display
+                for (const item of this.allItemsForMerge) {
+                    this.mergeItemCache[item.id] = {
+                        name: item.name,
+                        color: item.color,
+                        document_count: item.document_count,
+                    };
+                }
+            },
+
             async loadMergeSuggestions() {
                 if (!this.apiEndpoint) return;
 
                 this.loading = true;
                 try {
-                    let url = `${this.apiEndpoint}/merge-suggestions`;
-                    if (this.mergePrefix) {
-                        url += `?prefix=${encodeURIComponent(this.mergePrefix)}`;
+                    // Load all items once if not already cached
+                    if (!this.allItemsLoaded) {
+                        const resp = await fetch(`${this.apiEndpoint}/all`);
+                        const data = await resp.json();
+                        this.allItemsForMerge = data[this.itemKey];
+                        this.allItemsLoaded = true;
                     }
-                    const resp = await fetch(url);
-                    const data = await resp.json();
-                    this.mergeGroups = data.groups;
 
-                    // Cache all items from groups for display
-                    for (const prefix in this.mergeGroups) {
-                        const group = this.mergeGroups[prefix];
-                        for (const item of group[this.itemKey]) {
-                            this.mergeItemCache[item.id] = {
-                                name: item.name,
-                                color: item.color,
-                                document_count: item.document_count,
-                            };
-                        }
-                    }
+                    // Compute groups client-side
+                    this.computeMergeGroups();
                 } catch (e) {
-                    showToast(
-                        "Failed to load suggestions: " + e.message,
-                        "error",
-                    );
+                    showToast("Failed to load items: " + e.message, "error");
                 }
                 this.loading = false;
             },
