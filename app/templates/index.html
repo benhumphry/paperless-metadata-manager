@@ -1,27 +1,33 @@
-{% extends "base.html" %} {% block header_center %}
-<div id="metadataTypeButtons" class="flex items-center">
-    <button
-        data-type="tags"
-        class="px-3 py-1 text-sm font-medium rounded-l-md border border-gray-300 dark:border-gray-600 bg-blue-500 text-white"
-    >
-        Tags
-    </button>
-    <button
-        data-type="correspondents"
-        class="px-3 py-1 text-sm font-medium border-t border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
-    >
-        Correspondents
-    </button>
-    <button
-        data-type="document_types"
-        class="px-3 py-1 text-sm font-medium rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
-    >
-        Document Types
-    </button>
-</div>
-{% endblock %} {% block content %}
+{% extends "base.html" %} {% block content %}
 <div x-data="metadataManager()" x-init="init()">
-    <!-- Tabs -->
+    <!-- Metadata Type Tabs -->
+    <div class="border-b border-gray-200 dark:border-gray-700">
+        <nav class="-mb-px flex space-x-8">
+            <button
+                @click="metadataType = 'tags'; onMetadataTypeChange()"
+                :class="metadataType === 'tags' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm"
+            >
+                Tags
+            </button>
+            <button
+                @click="metadataType = 'correspondents'; onMetadataTypeChange()"
+                :class="metadataType === 'correspondents' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm"
+            >
+                Correspondents
+            </button>
+            <button
+                @click="metadataType = 'document_types'; onMetadataTypeChange()"
+                :class="metadataType === 'document_types' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm"
+            >
+                Document Types
+            </button>
+        </nav>
+    </div>
+
+    <!-- View Tabs -->
     <div class="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-8">
             <button
@@ -1166,44 +1172,6 @@
 
             // Methods
             async init() {
-                // Connect header metadata type buttons to this component
-                const buttonContainer = document.getElementById(
-                    "metadataTypeButtons",
-                );
-                if (buttonContainer) {
-                    const buttons = buttonContainer.querySelectorAll("button");
-                    const activeClass = "bg-blue-500 text-white";
-                    const inactiveClass =
-                        "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600";
-
-                    const updateButtonStyles = (activeType) => {
-                        buttons.forEach((btn) => {
-                            const isActive = btn.dataset.type === activeType;
-                            // Remove both class sets first
-                            activeClass
-                                .split(" ")
-                                .forEach((c) => btn.classList.remove(c));
-                            inactiveClass
-                                .split(" ")
-                                .forEach((c) => btn.classList.remove(c));
-                            // Add appropriate classes
-                            (isActive ? activeClass : inactiveClass)
-                                .split(" ")
-                                .forEach((c) => btn.classList.add(c));
-                        });
-                    };
-
-                    buttons.forEach((btn) => {
-                        btn.addEventListener("click", () => {
-                            this.metadataType = btn.dataset.type;
-                            updateButtonStyles(this.metadataType);
-                            this.onMetadataTypeChange();
-                        });
-                    });
-
-                    // Keep buttons in sync if metadataType changes internally
-                    this.$watch("metadataType", updateButtonStyles);
-                }
                 await this.loadData();
             },
 
