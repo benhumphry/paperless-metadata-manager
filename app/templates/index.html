@@ -669,6 +669,42 @@
                     >Semantic <span class="text-purple-500">≈</span></span
                 >
             </label>
+            <label
+                x-show="llmEnabled"
+                class="inline-flex items-center cursor-pointer"
+            >
+                <input
+                    type="checkbox"
+                    x-model="groupByLlm"
+                    @change="allItemsLoaded && onLlmCheckboxChange()"
+                    class="form-checkbox h-4 w-4 text-amber-500 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                    :disabled="llmLoading"
+                />
+                <span class="ml-2 text-sm text-gray-700 dark:text-gray-300"
+                    >AI <span class="text-amber-500">⚡</span></span
+                >
+                <svg
+                    x-show="llmLoading"
+                    class="ml-2 animate-spin h-4 w-4 text-amber-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                >
+                    <circle
+                        class="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        stroke-width="4"
+                    ></circle>
+                    <path
+                        class="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                </svg>
+            </label>
         </div>
 
         <!-- Prefix Filter for Suggestions -->
@@ -683,20 +719,11 @@
             />
             <button
                 @click="loadMergeSuggestions()"
-                class="px-4 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700"
+                class="px-4 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="loading || llmLoading"
             >
-                Find Suggestions
-            </button>
-            <button
-                x-show="llmEnabled && allItemsLoaded"
-                @click="loadLlmGroups()"
-                :disabled="llmLoading"
-                class="px-4 py-2 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-                <span x-show="llmLoading" class="animate-spin">⏳</span>
-                <span
-                    x-text="llmLoading ? 'Asking AI...' : '⚡ AI Group'"
-                ></span>
+                <span x-show="llmLoading">Asking AI...</span>
+                <span x-show="!llmLoading">Find Suggestions</span>
             </button>
             <span
                 x-show="metadataType === 'tags'"
@@ -1008,6 +1035,9 @@
             // LLM grouping
             llmEnabled: false,
             llmLoading: false,
+            llmGroups: {}, // Cached LLM groups
+            llmGroupsLoaded: false,
+            groupByLlm: false, // Checkbox state, defaults to unchecked
 
             // Pagination state (All tab)
             currentPage: 1,
@@ -1120,6 +1150,8 @@
                 this.customMergeSearchResults = [];
                 this.allItemsForMerge = [];
                 this.allItemsLoaded = false;
+                this.llmGroups = {};
+                this.llmGroupsLoaded = false;
                 this.loadData();
             },
 
@@ -1471,6 +1503,14 @@
                     }
                 }
 
+                // Add cached LLM groups if enabled and loaded
+                if (this.groupByLlm && this.llmGroupsLoaded) {
+                    for (const [key, group] of Object.entries(this.llmGroups)) {
+                        const groupKey = `llm:${key}`;
+                        allGroups[groupKey] = group;
+                    }
+                }
+
                 this.mergeGroups = allGroups;
 
                 // Cache all items for display
@@ -1511,10 +1551,25 @@
                         this.llmEnabled = data.llm_enabled || false;
                     }
 
-                    // Load word associations for semantic grouping (in parallel if needed)
+                    // Build array of parallel promises
+                    const promises = [];
+
+                    // Load word associations for semantic grouping if needed
                     if (this.groupBySemantic && !this.wordAssociationsLoaded) {
-                        await this.loadWordAssociations();
+                        promises.push(this.loadWordAssociations());
                     }
+
+                    // Load LLM groups if enabled and not already loaded
+                    if (
+                        this.groupByLlm &&
+                        this.llmEnabled &&
+                        !this.llmGroupsLoaded
+                    ) {
+                        promises.push(this.loadLlmGroups());
+                    }
+
+                    // Wait for all parallel loads to complete
+                    await Promise.all(promises);
 
                     // Compute groups client-side
                     this.computeMergeGroups();
@@ -1524,8 +1579,18 @@
                 this.loading = false;
             },
 
+            async onLlmCheckboxChange() {
+                // If checked and not yet loaded, fetch LLM groups
+                if (this.groupByLlm && !this.llmGroupsLoaded) {
+                    await this.loadLlmGroups();
+                }
+                // Recompute groups with or without LLM
+                this.computeMergeGroups();
+            },
+
             async loadLlmGroups() {
                 if (!this.apiEndpoint || !this.llmEnabled) return;
+                if (this.llmGroupsLoaded) return; // Already loaded
 
                 this.llmLoading = true;
                 try {
@@ -1540,12 +1605,12 @@
 
                     const data = await resp.json();
 
-                    // Add LLM groups to existing groups
+                    // Cache LLM groups separately (not in mergeGroups directly)
+                    this.llmGroups = {};
                     for (const [key, group] of Object.entries(data.groups)) {
-                        const groupKey = `llm:${key}`;
-                        this.mergeGroups[groupKey] = group;
+                        this.llmGroups[key] = group;
 
-                        // Cache items
+                        // Cache items for display
                         for (const item of group[this.itemKey]) {
                             this.mergeItemCache[item.id] = {
                                 name: item.name,
@@ -1554,13 +1619,14 @@
                             };
                         }
                     }
+                    this.llmGroupsLoaded = true;
 
                     showToast(
-                        `Found ${data.total_groups} LLM-suggested groups`,
+                        `Found ${data.total_groups} AI-suggested groups`,
                         "success",
                     );
                 } catch (e) {
-                    showToast("LLM grouping failed: " + e.message, "error");
+                    showToast("AI grouping failed: " + e.message, "error");
                 }
                 this.llmLoading = false;
             },
@@ -1844,6 +1910,7 @@
                         this.customMergeSearch = "";
                         this.customMergeSearchResults = [];
                         this.allItemsLoaded = false; // Force refresh of cached items
+                        this.llmGroupsLoaded = false; // Force refresh of LLM groups
                         this.loadData();
                         this.loadMergeSuggestions();
                     } catch (e) {
