@@ -1093,6 +1093,7 @@
             },
 
             get filteredItems() {
+                if (!Array.isArray(this.items)) return [];
                 let result = [...this.items];
 
                 // Sorting only - filtering is done server-side

@@ -216,9 +216,37 @@ JSON response (group name -> array of exact item names):"""
 
             return result
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parse error: {e}")
-            logger.error(f"Content preview: {content[:500]}...")
-            return {}
+            logger.warning(f"JSON parse error: {e}, attempting to recover partial response")
+            # Try to recover partial JSON by finding complete groups
+            return self._recover_partial_json(content)
         except (KeyError, IndexError) as e:
             logger.error(f"Parse error: {e}")
             return {}
+
+    def _recover_partial_json(self, content: str) -> dict[str, list[str]]:
+        """Attempt to recover groups from truncated JSON response."""
+        import re
+
+        result = {}
+
+        # Look for complete group patterns: "GroupName": ["item1", "item2", ...]
+        # This regex finds groups where the array is properly closed with ]
+        pattern = r'"([^"]+)":\s*\[((?:[^\[\]]*|\[(?:[^\[\]]*)\])*)\]'
+
+        for match in re.finditer(pattern, content):
+            group_name = match.group(1)
+            items_str = match.group(2)
+
+            # Skip the outer "groups" key if present
+            if group_name.lower() == "groups":
+                continue
+
+            # Extract quoted strings from the items
+            items = re.findall(r'"([^"]+)"', items_str)
+
+            if len(items) >= 2:
+                result[group_name] = items
+                logger.info(f"Recovered group '{group_name}' with {len(items)} items")
+
+        logger.info(f"Recovered {len(result)} groups from partial JSON")
+        return result
