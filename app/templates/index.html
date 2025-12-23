@@ -734,6 +734,37 @@
             </span>
         </div>
 
+        <!-- LLM Loading Indicator -->
+        <div
+            x-show="llmLoading"
+            class="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center space-x-3"
+        >
+            <svg
+                class="animate-spin h-5 w-5 text-amber-500"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+            >
+                <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                ></circle>
+                <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+            </svg>
+            <span class="text-amber-700 dark:text-amber-300 text-sm">
+                Asking AI to analyze and group items... This may take up to a
+                minute for large datasets.
+            </span>
+        </div>
+
         <!-- Merge Suggestion Groups -->
         <div class="space-y-4">
             <template x-for="(group, key) in sortedMergeGroups" :key="key">
