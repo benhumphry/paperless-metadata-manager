@@ -180,9 +180,10 @@ JSON response (group name -> array of exact item names):"""
             content = content.strip()
 
             # Remove control characters that can break JSON parsing
+            # Exclude tab (\x09), newline (\x0a), and carriage return (\x0d) which are valid in JSON
             import re
 
-            content = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", content)
+            content = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", content)
 
             # Handle qwen3 thinking tags - extract content after </think>
             if "<think>" in content:
