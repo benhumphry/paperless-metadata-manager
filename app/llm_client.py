@@ -192,10 +192,14 @@ JSON response (group name -> array of exact item names):"""
                     logger.info(f"Stripped thinking tags, content now {len(content)} chars")
 
             # Handle markdown code blocks
-            if content.startswith("```"):
-                lines = content.split("\n")
-                # Remove first and last lines (```json and ```)
-                content = "\n".join(lines[1:-1])
+            if "```" in content:
+                # Remove opening code fence (```json, ```JSON, ``` etc.) - handles both with and without newlines
+                import re
+
+                content = re.sub(r"```(?:json|JSON)?\s*", "", content)
+                # Remove closing code fence
+                content = content.replace("```", "")
+                content = content.strip()
                 logger.info(f"Stripped markdown, content now {len(content)} chars")
 
             # Try to find JSON object in the content
